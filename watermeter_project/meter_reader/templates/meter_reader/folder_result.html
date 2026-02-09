@@ -1,0 +1,59 @@
+{% extends "meter_reader/base.html" %}
+{% block title %}ผลโฟลเดอร์ — AquaRead{% endblock %}
+
+{% block head %}
+<style>
+  :root{ --ink:#0f172a; --muted:#64748b; --card:#fff; --border:#e5e7eb; }
+  body{ background:#f7fafc; color:var(--ink) }
+  .wrap{ max-width:900px; margin:28px auto; padding:0 16px; }
+  .card{ background:#fff; border:1px solid var(--border); border-radius:16px; }
+  .h{ padding:14px 16px; border-bottom:1px solid var(--border); font-weight:700 }
+  .b{ padding:14px 16px; }
+  table{ width:100%; border-collapse:collapse; font-size:14px }
+  thead th{ background:#f8fafc; color:#334155; text-align:left; padding:10px 12px }
+  tbody td{ border-top:1px solid var(--border); padding:10px 12px; }
+  code{ background:#f1f5f9; padding:2px 6px; border-radius:6px }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wrap">
+  <div class="card">
+    <div class="h">ผลการตรวจจับจากโฟลเดอร์</div>
+    <div class="b" style="overflow:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>ชื่อไฟล์</th>
+            <th>บ้านเลขที่</th>
+            <th>ผู้ใช้น้ำ</th>
+            <th>Serial</th>
+            <th style="text-align:right">Total (ม³)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in results %}
+            <tr>
+              <td class="font-mono">{{ item.filename }}</td>
+              {# ถ้า view ไม่ได้ส่งฟิลด์มา จะใช้ค่า mock เริ่มต้น #}
+              <td>{{ item.house_no|default:"88/12" }}</td>
+              <td>{{ item.customer|default:"คุณสมชาย ใจดี" }}</td>
+              <td class="font-mono">{{ item.serial|default:"SPP-NE-000101" }}</td>
+              <td style="text-align:right" class="font-mono">{{ item.total }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" style="text-align:center; color:#64748b">ไม่มีไฟล์ที่ประมวลผล</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      {% if csv_path %}
+      <div style="margin-top:14px; font-size:14px; color:#334155">
+        ไฟล์ CSV ถูกบันทึกไว้ที่:
+        <code>{{ csv_path }}</code>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

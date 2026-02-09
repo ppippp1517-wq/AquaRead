@@ -1,0 +1,38 @@
+# 2) predict main + pair
+        pil_enh = enhance_digit(crop_20x32)
+        arr = np.array(pil_enh.resize((Wm, Hm), Image.BILINEAR), dtype="float32")
+        if Cm == 1:
+            arr = cv2.cvtColor(arr.astype(np.uint8), cv2.COLOR_RGB2GRAY).astype(np.float32)[...,None]
+
+        # main model
+        probs = digit_model.predict(arr[None,...], verbose=0)[0]
+        cls = int(np.argmax(probs)); digit_conf = float(probs[cls])
+        nan_idx  = 10 if probs.shape[0] == 11 else None
+        nan_conf = float(probs[nan_idx]) if nan_idx is not None else 0.0
+        is_nan   = (nan_idx is not None and cls == nan_idx)
+
+        if (not is_nan) and (nan_conf < NAN_CONF_MIN or digit_conf >= DIGIT_CONF_MIN):
+            final = cls
+        else:
+            # pair a/b และวัดพื้นที่ด้านล่าง
+            g_full = np.array(pil_enh.convert("L"))
+            g_resz = cv2.resize(g_full, (Wp, Hp), interpolation=cv2.INTER_LINEAR)
+            xpair  = (g_resz.astype(np.float32)/255.0)
+            if Cp == 1: xpair = xpair[...,None]
+            else:       xpair = np.stack([xpair,xpair,xpair], axis=-1)
+
+            pr = pair_model.predict(xpair[None,...], verbose=0)[0]
+            a = int(pr.argmax()); b = (a + 1) % 10
+            conf = float(pr[a])
+
+            mask = to_dark_mask(g_resz)
+            frac, _ = dark_fraction_below(mask, MID_RATIO, IGNORE_X_MARGIN)
+            thr_used = PAIR_THR.get(a, AREA_THR)
+
+            # เริ่มที่เลขเดิม (น้อยกว่า)
+            final = a
+            # จะยอมเลื่อนขึ้นเฉพาะเมื่อมั่นใจมากและ below เกิน threshold+margin
+            if (conf >= STRONG_PAIR_CONF) and (frac >= (thr_used + EXTRA_BELOW_MARGIN)):
+                final = b
+
+        preds.append(final)

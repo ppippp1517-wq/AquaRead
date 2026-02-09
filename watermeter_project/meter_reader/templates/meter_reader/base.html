@@ -1,0 +1,25 @@
+
+{% load static %}
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}AquaRead Meter{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="manifest" href="{% static 'manifest.json' %}">
+    <meta name="theme-color" content="#1f3b73">
+    <link rel="apple-touch-icon" href="{% static 'meter_reader/img/icon-192.png' %}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register("{% static 'service-worker.js' %}")
+          .then(reg => { console.log('Service Worker Registered!', reg); });
+      }
+    </script>
+    {% block head %}{% endblock %}
+</head>
+<body>
+    {% block content %}
+    {% endblock %}
+</body>
+</html>

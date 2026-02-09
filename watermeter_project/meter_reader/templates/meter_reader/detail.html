@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>รายงานผลการตรวจจับ {{ stem }}</title>
+
+  <style>
+    :root{
+      --bg:#fff; --ink:#111; --muted:#6b7280; --border:#e5e7eb; --panel:#fff; --thead:#f8fafc;
+      --center-width:640px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; background:var(--bg); color:var(--ink);
+      font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,"Noto Sans Thai",Tahoma,sans-serif;
+      line-height:1.6; font-feature-settings:"tnum" 1,"lnum" 1; font-variant-numeric:tabular-nums lining-nums;
+    }
+
+    /* Layout */
+    .container{max-width:960px; margin:28px auto; padding:0 16px}
+    .centered{max-width:var(--center-width); margin-inline:auto}
+    h1,h2{margin:0 0 12px; font-weight:700}
+    h1{font-size:22px} h2{font-size:18px}
+    .muted{color:var(--muted); font-size:14px}
+    .section{margin:22px 0}
+    .rule{border:0; border-top:1px solid var(--border); margin:12px 0; height:0}
+
+    /* Card (no rounded corners) */
+    .card{background:var(--panel); border:1px solid var(--border); border-radius:0; padding:14px}
+
+    /* Hero image */
+    .hero{display:flex; justify-content:center; align-items:center}
+    .hero img{
+      width:min(420px,100%); height:auto;
+      border:1px solid var(--border); border-radius:0; display:block; margin:0 auto;
+    }
+
+    /* Key-value tables */
+    .kv{max-width:640px; margin:0 auto}
+    .kv table{
+      width:100%;
+      border-collapse:separate; border-spacing:0;
+      border:1px solid var(--border); border-radius:0; overflow:hidden;
+      font-size:14px;
+    }
+    .kv thead th{
+      background:var(--thead); text-align:left; font-weight:700;
+      padding:8px 10px; border-bottom:1px solid var(--border);
+    }
+    .kv tbody td{padding:8px 10px; border-bottom:1px solid var(--border)}
+    .kv thead th + th, .kv tbody td + td{border-left:1px solid var(--border)}
+    .kv td:first-child{width:42%; color:#374151}
+    .kv td:last-child{text-align:right; font-weight:700}
+    .kv tbody tr:last-child td{border-bottom:0}
+
+    /* center all cells */
+    .kv thead th, .kv tbody td{ text-align:center; vertical-align:middle }
+    .kv tbody td:first-child, .kv tbody td:last-child{ text-align:center }
+
+    /* Thumbnail tables */
+    .thumbwrap{max-width:var(--center-width); margin:0 auto}
+    .thumbtable{
+      width:100%; table-layout:fixed;
+      border-collapse:separate; border-spacing:0;
+      border:1px solid var(--border); border-radius:0; overflow:hidden;
+      font-size:14px;
+    }
+    .thumbtable th, .thumbtable td{
+      padding:6px 8px; border-right:1px solid var(--border);
+      border-bottom:1px solid var(--border); vertical-align:middle; text-align:center;
+    }
+    .thumbtable thead th{background:var(--thead); font-weight:600}
+    .thumbtable tr th:last-child, .thumbtable tr td:last-child{border-right:0}
+    .thumbtable tbody tr:last-child td{border-bottom:0}
+    .thumbtable td.pic img{display:block; width:100%; height:auto; border:1px solid var(--border); border-radius:0}
+    .thumbtable td.num{font-weight:700; white-space:nowrap}
+
+    @media print{
+      .container{max-width:100%; margin:0; padding:0}
+      a{text-decoration:underline}
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 class="centered">
+      รายงานผลการตรวจจับ <span class="muted">{{ stem }}</span>
+    </h1>
+
+    <!-- Detected image -->
+    <div class="card hero centered" style="margin-top:10px;">
+      {% if digit_detect_url %}
+        <img src="{{ digit_detect_url }}" alt="ภาพที่ตรวจจับ">
+      {% else %}
+        <div class="muted">ไม่มีภาพที่ตรวจจับ</div>
+      {% endif %}
+    </div>
+
+    <!-- Summary values -->
+    <div class="section kv centered" aria-labelledby="kv-title">
+      <h2 id="kv-title">สรุปค่าที่อ่านได้</h2>
+      <hr class="rule" />
+      <table>
+        <thead>
+          <tr><th>ตำแหน่ง</th><th>ค่า</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Digital</td><td>{{ digital_x }}</td></tr>
+          <tr><td>x01</td><td>{{ x01 }}</td></tr>
+          <tr><td>x001</td><td>{{ x001 }}</td></tr>
+          <tr><td>x0001</td><td>{{ x0001 }}</td></tr>
+          <tr><td>x00001</td><td>{{ x00001 }}</td></tr>
+          <tr><td><strong>รวม</strong></td><td><strong>{{ total }} m³</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Prev / Raw / Final -->
+    <div class="section kv centered" aria-labelledby="decision-title">
+      <h2 id="decision-title">การตัดสินใจแต่ละหลัก</h2>
+      <hr class="rule" />
+      <table class="result-table">
+        <thead>
+          <tr>
+            <th>ตำแหน่ง</th>
+            <th>Prev</th>
+            <th>Raw</th>
+            <th>Final</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Digital</td>
+            <td>-</td>
+            <td>{{ raw_digits.digital_x_raw|default:"-" }}</td>
+            <td><strong>{{ final_digits.digital_x|default:"-" }}</strong></td>
+          </tr>
+          <tr>
+            <td>x01</td>
+            <td>{{ prev_reading.x01|default:"-" }}</td>
+            <td>{{ raw_digits.x01_raw|default:"-" }}</td>
+            <td><strong>{{ final_digits.x01|default:"-" }}</strong></td>
+          </tr>
+          <tr>
+            <td>x001</td>
+            <td>{{ prev_reading.x001|default:"-" }}</td>
+            <td>{{ raw_digits.x001_raw|default:"-" }}</td>
+            <td><strong>{{ final_digits.x001|default:"-" }}</strong></td>
+          </tr>
+          <tr>
+            <td>x0001</td>
+            <td>{{ prev_reading.x0001|default:"-" }}</td>
+            <td>{{ raw_digits.x0001_raw|default:"-" }}</td>
+            <td><strong>{{ final_digits.x0001|default:"-" }}</strong></td>
+          </tr>
+          <tr>
+            <td>x00001</td>
+            <td>{{ prev_reading.x00001|default:"-" }}</td>
+            <td>{{ raw_digits.x00001_raw|default:"-" }}</td>
+            <td><strong>{{ final_digits.x00001|default:"-" }}</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Digital crops -->
+    <div class="section" aria-labelledby="dg-title">
+      <h2 id="dg-title" class="centered">Image Digital Crop</h2>
+      {% if digit_items %}
+        <div class="thumbwrap" style="margin-top:8px;">
+          <table class="thumbtable">
+            <thead>
+              <tr>
+                {% for it in digit_items %}
+                  <th>Img</th><th>Val.</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                {% for it in digit_items %}
+                  <td class="pic"><img src="{{ it.url }}" alt="digit {{ forloop.counter }}"></td>
+                  <td class="num">{{ it.label }}</td>
+                {% endfor %}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="muted centered">— ไม่มีภาพ —</div>
+      {% endif %}
+    </div>
+
+    <!-- Analog dials -->
+    <div class="section" aria-labelledby="an-title">
+      <h2 id="an-title" class="centered">Image Analog Crop</h2>
+      {% if analog_items %}
+        <div class="thumbwrap" style="margin-top:8px;">
+          <table class="thumbtable">
+            <thead>
+              <tr>
+                {% for it in analog_items %}
+                  <th>Img</th><th>Val.</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                {% for it in analog_items %}
+                  <td class="pic"><img src="{{ it.url }}" alt="dial {{ forloop.counter }}"></td>
+                  <td class="num">{{ it.label }}</td>
+                {% endfor %}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="muted centered">— ไม่มีภาพ —</div>
+      {% endif %}
+    </div>
+
+  </div>
+</body>
+</html>

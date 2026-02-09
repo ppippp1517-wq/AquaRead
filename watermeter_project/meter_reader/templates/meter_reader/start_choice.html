@@ -1,0 +1,376 @@
+{% load static %}
+
+{% block title %}เริ่มต้นใช้งาน · AquaRead{% endblock %}
+
+{% block head %}
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-deep:#f6fbff; --ink:#0d2a4a; --muted:#6b7280; --card:#ffffff; --border:#e5e7eb;
+    --accent:#0ea5e9; --accent-ink:#ffffff; --content-w:1100px; --radius:12px;
+    --shadow:0 15px 15px -10px rgba(2,6,23,.08);
+  }
+  html,body{height:100%}
+  body{margin:0;background:var(--bg-deep);font-family:"Prompt",system-ui,-apple-system,"Segoe UI",Roboto,Arial,"Noto Sans Thai",sans-serif;color:var(--ink);line-height:1.6}
+
+  /* Header */
+  .site-header{background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20}
+  .wrap{max-width:var(--content-w);margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:18px}
+  .brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit}
+  .brand img{height:32px}
+  .menu{display:flex;gap:18px;list-style:none;margin:0 auto 0 0;padding:0}
+  .menu a{color:#0d2a4a;text-decoration:none;font-weight:700}
+  .menu a:hover{color:var(--accent)}
+
+  /* Hero */
+  .hero{background:linear-gradient(180deg,#e0f2fe 0%,#f8fbff 100%);border-bottom:1px solid var(--border)}
+  .hero-inner{max-width:var(--content-w);margin:0 auto;padding:48px 24px;display:grid;gap:28px;grid-template-columns:minmax(0,1fr) 460px;align-items:start}
+  .pill{display:inline-block;padding:6px 12px;border-radius:999px;background:#e0f2fe;color:#065986;font-weight:700;font-size:14px}
+  .hero h1{font-family:"Poppins","Prompt",sans-serif;font-size:40px;line-height:1.25;margin:.6rem 0 0;color:#0b2b4a}
+  .hero p{margin:.75rem 0 0;color:#334155;max-width:640px}
+
+  .hero-aside{background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);padding:16px}
+  .features-hero{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .feature-card{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--border);border-radius:14px;background:#fff;padding:14px}
+  .icon-badge{width:28px;height:28px;border-radius:999px;display:grid;place-items:center;border:1px solid #dfe3ea;color:#0d2a4a}
+  .feature-title{font-weight:700;color:#0d2a4a}
+  .feature-desc{font-size:13px;color:#64748b;margin-top:2px}
+
+  /* Mini buttons (เหมือน mockup) */
+  .actions{margin-top:16px;display:flex;gap:12px;align-items:center}
+  .btn-mini{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;font-size:14px;font-weight:700;border-radius:8px;text-decoration:none;border:1px solid transparent;line-height:1}
+  .btn-mini .icon{width:18px;height:18px}
+  .btn-dark{background:#0f2741;color:#fff;border-color:#0f2741}
+  .btn-dark:hover{filter:brightness(.96)}
+  .btn-ghost{background:#fff;color:#0d2a4a;border-color:#e5e7eb}
+  .btn-ghost:hover{background:#f8fafc}
+
+  /* Content */
+  .content{max-width:var(--content-w);margin:32px auto;padding:0 24px;display:grid;gap:28px;grid-template-columns:1fr 320px}
+  .entry{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+  .entry .inner{padding:24px}
+  .entry h2{font-family:"Poppins","Prompt",sans-serif;color:#0b2b4a;font-size:28px;margin:1rem 0 .5rem}
+  .entry h3{font-weight:700;font-size:20px;color:#0b2b4a;margin:.75rem 0 .35rem}
+  .entry p{margin:.6rem 0}
+  .toc{border:1px solid var(--border);border-radius:var(--radius);padding:16px;background:#f1f5f9;margin:.5rem 0 1rem}
+  .toc h4{margin:0 0 .5rem;font-size:18px}
+  .toc ul{margin:0;padding-left:18px}
+  .toc a{text-decoration:none;color:#0d2a4a}
+  .toc a:hover{color:var(--accent)}
+  .sidebar .widget{margin-bottom:24px}
+  .cta{display:block;text-align:center;padding:14px 16px;border-radius:var(--radius);background:#0b2b4a;color:#fff;text-decoration:none;font-weight:700}
+
+  /* Modal */
+  .auth-overlay{position:fixed;inset:0;background:rgba(2,6,23,.45);display:none;place-items:center;z-index:9999}
+  .auth-overlay.open{display:grid}
+  .auth-card{width:820px;max-width:95vw;background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+  .auth-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border)}
+  .auth-body{padding:18px}
+  .auth-tabs{display:flex;gap:14px;border-bottom:1px solid var(--border);margin-bottom:14px}
+  .auth-tab{padding:10px 6px;margin-bottom:-1px;border-bottom:2px solid transparent;font-weight:700;color:#6b7280}
+  .auth-tab.active{color:#0d2a4a;border-color:#0d2a4a}
+  .auth-grid{display:grid;gap:12px}
+  .auth-actions{margin-top:10px}
+  .auth-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;font-weight:700;border:1px solid var(--border);background:#0f2741;color:#fff}
+  .auth-btn.ghost{background:#fff;color:#0d2a4a}
+  .auth-note{font-size:12px;color:#6b7280;margin-top:8px}
+  .auth-footer{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;background:#fafafa}
+  .auth-close{margin-left:auto}
+  .input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media (max-width:1024px){ .hero-inner{grid-template-columns:1fr} .features-hero{grid-template-columns:1fr} .content{grid-template-columns:1fr} }
+  @media (max-width:640px){ .form-row{grid-template-columns:1fr} }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Modal: Login/Register -->
+<div id="authModal" class="auth-overlay" aria-hidden="true">
+  <div class="auth-card" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+    <div class="auth-head">
+      <img src="{% static 'meter_reader/aqua_logo1.png' %}" alt="" style="height:22px">
+      <div id="authTitle" style="font-weight:700;">AquaRead • Advanced Metering Interface</div>
+      <button class="btn-mini btn-ghost auth-close" type="button" aria-label="ปิด">ปิด</button>
+    </div>
+
+    <div class="auth-body">
+      <div class="auth-tabs">
+        <button class="auth-tab js-auth-tab active" data-tab="login">เข้าสู่ระบบ</button>
+        <button class="auth-tab js-auth-tab" data-tab="register">ลงทะเบียน</button>
+      </div>
+
+      <!-- Login -->
+      <form id="authLogin" class="auth-panel" method="post" action="{% url 'login' %}?next={% url 'meter_app' %}">
+        {% csrf_token %}
+        <div class="auth-grid">
+          <div class="muted">กรุณาเข้าสู่ระบบเพื่อใช้งานระบบมิเตอร์อัจฉริยะ (AMI)</div>
+          <label>รหัสพนักงาน
+            <input class="input" type="text" name="username" placeholder="เช่น 012345" required>
+          </label>
+          <label>รหัสผ่าน
+            <input class="input" type="password" name="password" required>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" checked> จดจำรหัสพนักงาน
+          </label>
+        </div>
+        <div class="auth-actions">
+          <button type="submit" class="auth-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M15 3h4v18h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/>
+            </svg>
+            เข้าสู่ระบบ
+          </button>
+          <div class="auth-note">หากลืมรหัสผ่าน โปรดติดต่อผู้ดูแลระบบหน่วยงานของท่าน</div>
+        </div>
+      </form>
+
+      <!-- Register (โหมดทดลอง: ยังไม่มี endpoint จริง) -->
+      <form id="authRegister" class="auth-panel" method="post" action="#" style="display:none">
+        {% csrf_token %}
+        <div class="auth-grid">
+          <div class="muted">กรอกข้อมูลเพื่อขอสิทธิ์การใช้งานระบบ</div>
+          <div class="form-row">
+            <label>ชื่อ–สกุล
+              <input class="input" type="text" name="full_name" required>
+            </label>
+            <label>อีเมลราชการ
+              <input class="input" type="email" name="email" placeholder="name@agency.go.th" required>
+            </label>
+          </div>
+          <div class="form-row">
+            <label>หน่วยงาน/สาขา
+              <input class="input" type="text" name="dept">
+            </label>
+            <label>รหัสพนักงาน
+              <input class="input" type="text" name="emp_id">
+            </label>
+          </div>
+          <div class="form-row">
+            <label>รหัสผ่าน
+              <input class="input" type="password" name="password1" placeholder="อย่างน้อย 6 ตัวอักษร" required>
+            </label>
+            <label>ยืนยันรหัสผ่าน
+              <input class="input" type="password" name="password2" required>
+            </label>
+          </div>
+          <label style="display:flex;align-items:center;gap:8px">
+            <input type="checkbox" required> ยอมรับเงื่อนไขการใช้งานและนโยบายความเป็นส่วนตัว
+          </label>
+        </div>
+        <div class="auth-actions">
+          <button type="submit" class="auth-btn ghost">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M19 8v6"/><path d="M22 11h-6"/>
+            </svg>
+            ส่งคำขอใช้งาน
+          </button>
+          <div class="auth-note">* โหมดสาธิต — ยังไม่ได้เชื่อมต่อระบบสมัครใช้งานจริง</div>
+        </div>
+      </form>
+    </div>
+
+    <div class="auth-footer">
+      <a href="{% url 'overview' %}" class="btn-mini btn-ghost">กลับหน้าแรก</a>
+      <button type="button" class="btn-mini auth-close">ปิดหน้าต่าง</button>
+    </div>
+  </div>
+</div>
+
+<!-- Header -->
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="{% url 'overview' %}">
+      <img src="{% static 'meter_reader/aqua_logo1.png' %}" alt="AquaRead">
+      <strong>AquaRead</strong>
+    </a>
+    <ul class="menu">
+      <li><a href="{% url 'overview' %}">หน้าแรก</a></li>
+      <li><a href="{% url 'meter_app' %}">ใช้งานระบบ</a></li>
+      <li><a href="{% url 'contact' %}">ติดต่อ</a></li>
+    </ul>
+  </div>
+</header>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-inner">
+    <div>
+      <span class="pill">ระบบต้นแบบสำหรับองค์กรน้ำประปา</span>
+      <h1>อ่านค่ามาตรน้ำอัตโนมัติ <span style="color:#0284c7">แม่นยำ</span> และ <span style="color:#0284c7">โปร่งใส</span></h1>
+      <p>เชื่อมต่อการอัปโหลดภาพ การดีเทคค่าอ่าน และการวิเคราะห์การใช้น้ำเข้าด้วยกันในที่เดียว
+         รองรับรอบตัดบิลเริ่มทุกวันที่ 5 ของเดือน และบันทึกประวัติย้อนหลัง</p>
+
+      <!-- ปุ่มเปิดโมดัล -->
+      <div class="actions">
+        <a class="btn-mini btn-dark js-open-auth" href="#" data-tab="login">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M15 3h4v18h-4" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M10 17l5-5-5-5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M15 12H3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          เข้าสู่ระบบ
+        </a>
+
+        <a class="btn-mini btn-ghost js-open-auth" href="#" data-tab="register">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="9" cy="7" r="4" />
+            <path d="M19 8v6" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M22 11h-6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          ลงทะเบียน
+        </a>
+      </div>
+    </div>
+
+    <!-- Aside (ตัวอย่างความสามารถ) -->
+    <aside class="hero-aside">
+      <div style="font-size:14px;color:#475569;margin-bottom:8px">ภาพรวมความสามารถ</div>
+      <div class="features-hero">
+        <div class="feature-card">
+          <div class="icon-badge">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 14l4-4"/><path d="M12 3a9 9 0 1 0 9 9"/><path d="M7 12a5 5 0 0 1 10 0"/>
+            </svg>
+          </div>
+          <div>
+            <div class="feature-title">อ่านค่ามิเตอร์จากภาพ</div>
+            <div class="feature-desc">รองรับเข็ม/ดิจิทัล พร้อมความเชื่อมั่นและภาพอ้างอิง</div>
+          </div>
+        </div>
+        <div class="feature-card">
+          <div class="icon-badge">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 3c-2.5-1.5-6-1.5-8.5 0v16c2.5-1.5 6-1.5 8.5 0 2.5-1.5 6-1.5 8.5 0V3c-2.5-1.5-6-1.5-8.5 0z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="feature-title">วิเคราะห์การใช้น้ำ</div>
+            <div class="feature-desc">แดชบอร์ดรายวัน/รายเดือน และประมาณการค่าน้ำ</div>
+          </div>
+        </div>
+        <div class="feature-card">
+          <div class="icon-badge">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5"/>
+              <path d="M9 17a3 3 0 0 0 6 0"/>
+            </svg>
+          </div>
+          <div>
+            <div class="feature-title">แจ้งเตือนอัจฉริยะ</div>
+            <div class="feature-desc">เตือนหยุดส่ง/ข้อมูลผิดปกติ/ความเชื่อมั่นต่ำ</div>
+          </div>
+        </div>
+        <div class="feature-card">
+          <div class="icon-badge">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <path d="M7 10l5 5 5-5"/>
+              <path d="M12 15V3"/>
+            </svg>
+          </div>
+          <div>
+            <div class="feature-title">ส่งออก CSV</div>
+            <div class="feature-desc">นำผลไปใช้ต่อใน Excel/BI ได้ทันที</div>
+          </div>
+        </div>
+      </div>
+      <div class="feature-card" style="margin-top:12px">
+        <div class="icon-badge">📊</div>
+        <div>
+          <div class="feature-title">ตัวอย่างสรุปรายเดือน</div>
+          <div style="height:80px;border-radius:10px;background:linear-gradient(90deg,#bae6fd,#38bdf8)"></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- เนื้อหา (ถ้าต้องการคงสารบัญ/คำอธิบายไว้) -->
+<section class="content">
+  <article class="entry">
+    <div class="inner">
+      <nav class="toc" aria-label="สารบัญบทความ">
+        <h4>สารบัญบทความ</h4>
+        <ul>
+          <li><a href="#what-is">AquaRead คืออะไร?</a></li>
+          <li><a href="#howto">เริ่มใช้งานอย่างไร</a></li>
+          <li><a href="#faq">คำถามที่พบบ่อย</a></li>
+        </ul>
+      </nav>
+
+      <h2 id="what-is">AquaRead คืออะไร?</h2>
+      <p>AquaRead เป็นระบบอ่านค่ามิเตอร์น้ำอัตโนมัติด้วย AI จากภาพถ่ายหรือเว็บแคม
+        ออกแบบมาเพื่อลดงานจดมิเตอร์ เพิ่มความแม่นยำ และรวมเป็นรายงานได้ทันที</p>
+
+      <h2 id="howto">เริ่มใช้งานอย่างไร</h2>
+      <h3>1) เตรียมภาพ</h3>
+      <p>ถ่ายมิเตอร์ให้ชัด เห็นตัวเลขครบและสว่างพอ <span class="muted">(แนะนำถ่ายตรง ๆ ไม่เอียง)</span></p>
+      <h3>2) อัปโหลดหรือเปิด Webcam</h3>
+      <p>กด <a href="{% url 'meter_app' %}">ใช้งานระบบ</a> แล้วเลือกไฟล์ภาพ หรืออนุญาตการใช้กล้อง</p>
+      <h3>3) ตรวจผลและบันทึก</h3>
+      <p>ระบบจะแสดงตัวเลขที่อ่านได้ พร้อมดาวน์โหลดเป็น .CSV</p>
+
+      <h2 id="faq">คำถามที่พบบ่อย</h2>
+      <h3>อ่านผิดหรือคลาดเคลื่อนได้ไหม?</h3>
+      <p>ขึ้นกับความชัดของภาพและแสง หากภาพดี ระบบจะอ่านได้แม่นยำกว่าการจดมือ</p>
+      <h3>รองรับมิเตอร์แบบไหน?</h3>
+      <p>เฉพาะยี่ห้อ SPP หน้าปัดกลไกตัวเลขหมุน (roller counter) ที่มีรูปแบบตรงตามที่ระบบรองรับ</p>
+    </div>
+  </article>
+
+  <aside class="sidebar">
+    <div class="widget">
+      <a class="cta" href="{% url 'meter_app' %}">เริ่มต้นใช้งานตอนนี้</a>
+    </div>
+    <div class="widget"><img src="{% static 'meter_reader/sidebar-banner-1.jpg' %}" alt="" style="width:100%;display:block;border-radius:12px;border:1px solid var(--border)"></div>
+    <div class="widget"><img src="{% static 'meter_reader/sidebar-banner-2.jpg' %}" alt="" style="width:100%;display:block;border-radius:12px;border:1px solid var(--border)"></div>
+    <div class="widget" style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px">
+      <h5 style="margin:.25rem 0;font-size:18px;color:#0b2b4a">ติดต่อทีมพัฒนา</h5>
+      <p class="muted">ppippp1517@gmail.com</p>
+    </div>
+  </aside>
+</section>
+
+<!-- Modal Controller -->
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const overlay = document.getElementById('authModal');
+  if (!overlay) return;
+
+  const openers  = document.querySelectorAll('.js-open-auth');
+  const closers  = overlay.querySelectorAll('.auth-close');
+  const tabs     = overlay.querySelectorAll('.js-auth-tab');
+  const login    = document.getElementById('authLogin');
+  const register = document.getElementById('authRegister');
+
+  function switchTab(tab){
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.tab===tab));
+    if (login)    login.style.display    = (tab==='login') ? '' : 'none';
+    if (register) register.style.display = (tab==='register') ? '' : 'none';
+  }
+  function open(tab){ overlay.classList.add('open'); switchTab(tab||'login'); document.body.style.overflow='hidden'; }
+  function close(){ overlay.classList.remove('open'); document.body.style.overflow=''; }
+
+  openers.forEach(btn => btn.addEventListener('click', e => { e.preventDefault(); open(btn.dataset.tab || 'login'); }));
+  closers.forEach(btn => btn.addEventListener('click', close));
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+  tabs.forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+
+  // Register demo (ยังไม่มี URL จริง)
+  if (register) {
+    register.addEventListener('submit', e => {
+      e.preventDefault();
+      alert('ส่งคำขอใช้งาน (โหมดสาธิต) — ยังไม่ได้เชื่อม endpoint สมัครจริง');
+      close();
+    });
+  }
+});
+</script>
+
+{% endblock %}

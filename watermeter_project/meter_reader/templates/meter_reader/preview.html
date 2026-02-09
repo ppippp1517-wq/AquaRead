@@ -1,0 +1,78 @@
+{% extends "meter_reader/base.html" %}
+{% block title %}Preview{% endblock %}
+{% block head %}
+<style>
+    .btn-submit {
+    background-color:#000000; 
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    font-size: 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin: 6px 4px;
+    display: inline-block;
+    text-decoration: none; /* สำหรับ <a> */
+}
+
+.btn-submit:hover {
+    background-color: #345d9d;
+}
+.preview-container {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.preview-image {
+    max-width: 400px;
+    border: 1px solid #aaa;
+    margin: 16px auto;
+    display: block;
+}
+
+.button-group {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+.same-width {
+    width: 140px;  /* ปรับตามที่ต้องการให้เท่ากันเป๊ะ */
+    text-align: center;
+}
+
+/* สำหรับ <a> ให้ทำตัวเหมือนปุ่ม */
+.btn-submit.same-width {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+}
+
+
+
+</style>
+{% endblock %}
+{% block content %}
+<div class="preview-container">
+    <h2>ภาพที่ถ่าย</h2>
+
+    <img src="{{ base64_image }}" alt="Preview" class="preview-image">
+
+    <div class="button-group">
+        <form method="POST" action="{% url 'confirm_image' %}">
+  {% csrf_token %}
+  <!-- ⬇️ เพิ่ม -->
+  <input type="hidden" name="meter_id" value="{{ request.POST.meter_id|default:'SPP-01' }}">
+  <button type="submit" class="btn-submit same-width"> ใช้ภาพนี้</button>
+</form>
+
+
+        <a href="{% url 'upload_image' %}" class="btn-submit same-width"> ถ่ายใหม่</a>
+    </div>
+</div>
+
+{% endblock %}

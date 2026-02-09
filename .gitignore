@@ -1,0 +1,23 @@
+AquaReadApp/node_modules/
+AquaReadApp/node_modules/
+# ===== Python / ML =====
+yolov8_env/
+venv/
+.env/
+
+*.h5
+*.keras
+*.pt
+*.onnx
+
+# ===== PyTorch / TensorFlow caches =====
+__pycache__/
+*.pyc
+
+# ===== Node / Mobile =====
+AquaReadApp/node_modules/
+
+# Android build & gradle
+AquaReadApp/android/.gradle/
+AquaReadApp/android/build/
+AquaReadApp/android/gradle/wrapper/gradle-*.zip

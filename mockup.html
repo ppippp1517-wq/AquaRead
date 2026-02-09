@@ -1,0 +1,452 @@
+import React, { useMemo, useState } from "react";
+import {
+  MapPin,
+  Droplet,
+  Search,
+  Filter,
+  AlertTriangle,
+  ChevronRight,
+  Download,
+  Clock,
+  Users,
+  Gauge,
+  Camera,
+  Database,
+  Bell,
+  BarChart2,
+} from "lucide-react";
+
+// ---- Mock datasets ----
+const ZONES = [
+  { id: "z1", name: "เขตเหนือ" },
+  { id: "z2", name: "เขตกลาง" },
+  { id: "z3", name: "เขตใต้" },
+];
+
+const BRANCHES = [
+  { id: "b1", zoneId: "z1", name: "สาขา A (เหนือ)" },
+  { id: "b2", zoneId: "z1", name: "สาขา B (เหนือ)" },
+  { id: "b3", zoneId: "z2", name: "สาขา C (กลาง)" },
+  { id: "b4", zoneId: "z3", name: "สาขา D (ใต้)" },
+];
+
+const METERS = [
+  {
+    id: 101,
+    zoneId: "z1",
+    branchId: "b1",
+    houseNo: "88/12",
+    customer: "คุณสมชาย ใจดี",
+    serial: "SPP-NE-000101",
+    latest: 1842.37,
+    updatedAt: "2025-09-21 08:10",
+    conf: 0.91,
+    status: "ปกติ",
+    lat: 16.745,
+    lng: 100.123,
+  },
+  {
+    id: 102,
+    zoneId: "z1",
+    branchId: "b1",
+    houseNo: "88/13",
+    customer: "คุณสุดารัตน์",
+    serial: "SPP-NE-000102",
+    latest: 201.12,
+    updatedAt: "2025-09-20 06:05",
+    conf: 0.63,
+    status: "เฝ้าระวัง",
+    lat: 16.741,
+    lng: 100.129,
+  },
+  {
+    id: 103,
+    zoneId: "z1",
+    branchId: "b2",
+    houseNo: "21/7",
+    customer: "คุณพรทิพย์",
+    serial: "SPP-NE-000103",
+    latest: 930.55,
+    updatedAt: "2025-09-18 09:30",
+    conf: 0.42,
+    status: "หยุดส่ง",
+    lat: 16.777,
+    lng: 100.222,
+  },
+  {
+    id: 201,
+    zoneId: "z2",
+    branchId: "b3",
+    houseNo: "12/21",
+    customer: "หมู่บ้านพฤกษา 5/12",
+    serial: "SPP-CE-000201",
+    latest: 120.03,
+    updatedAt: "2025-09-21 07:00",
+    conf: 0.84,
+    status: "ปกติ",
+    lat: 15.001,
+    lng: 101.111,
+  },
+  {
+    id: 301,
+    zoneId: "z3",
+    branchId: "b4",
+    houseNo: "57/19",
+    customer: "โครงการบ้านธีรพล",
+    serial: "SPP-SO-000301",
+    latest: 765.88,
+    updatedAt: "2025-09-19 20:44",
+    conf: 0.78,
+    status: "เฝ้าระวัง",
+    lat: 13.001,
+    lng: 100.501,
+  },
+];
+
+const ALERTS = [
+  { id: "al1", meterId: 103, ts: "2025-09-19 10:12", level: "critical", type: "no_data", msg: "ไม่มีข้อมูลเกิน 72 ชม." },
+  { id: "al2", meterId: 102, ts: "2025-09-21 06:20", level: "warning", type: "low_conf", msg: "ความเชื่อมั่นต่ำ (0.63)" },
+  { id: "al3", meterId: 301, ts: "2025-09-20 22:05", level: "warning", type: "overuse", msg: "การใช้น้ำสูงกว่าค่าเฉลี่ย 30 วัน 160%" },
+];
+
+const DAILY30 = Array.from({ length: 30 }).map((_, i) => ({
+  date: i + 1,
+  usage: Math.max(0, Math.round(5 + Math.sin(i / 3) * 3 + (i % 7 === 0 ? 6 : 0)))
+}));
+
+const MONTH12 = Array.from({ length: 12 }).map((_, i) => ({
+  month: i + 1,
+  usage: Math.round(80 + Math.cos(i / 2) * 20 + (i % 6 === 0 ? 40 : 0)),
+}));
+
+// ---- Tiny chart placeholders (pure CSS) ----
+function SparkBar({ data = [], max = 0 }) {
+  const m = max || Math.max(...data.map((d) => d.usage || d.value || 0), 1);
+  return (
+    <div className="flex items-end gap-1 h-16 w-full">
+      {data.map((d, idx) => (
+        <div
+          key={idx}
+          className="bg-gray-900/70 rounded"
+          style={{ height: `${((d.usage || d.value) / m) * 100}%`, width: 6 }}
+          title={`${d.usage || d.value}`}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ---- Pill components ----
+const Pill = ({ children, tone = "default" }) => {
+  const cls = {
+    default: "bg-gray-100 text-gray-800",
+    ok: "bg-emerald-100 text-emerald-800",
+    warn: "bg-amber-100 text-amber-900",
+    danger: "bg-rose-100 text-rose-800",
+  }[tone];
+  return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${cls}`}>{children}</span>;
+};
+
+// ---- Layout ----
+function Shell({ children, role, setRole }) {
+  return (
+    <div className="min-h-screen bg-gray-50 text-gray-900">
+      <header className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
+          <Droplet className="w-6 h-6" />
+          <h1 className="text-lg font-semibold">AquaRead — Mockup</h1>
+          <span className="text-gray-400">•</span>
+          <span className="text-sm text-gray-600">ระบบอ่านค่ามาตรน้ำสำหรับองค์กร</span>
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-sm text-gray-600">โหมดมุมมอง:</span>
+            <button
+              className={`px-2 py-1 rounded text-sm border ${
+                role === "officer" ? "bg-gray-900 text-white" : "bg-white"
+              }`}
+              onClick={() => setRole("officer")}
+            >เจ้าหน้าที่</button>
+            <button
+              className={`px-2 py-1 rounded text-sm border ${
+                role === "customer" ? "bg-gray-900 text-white" : "bg-white"
+              }`}
+              onClick={() => setRole("customer")}
+            >ผู้ใช้น้ำ</button>
+          </div>
+        </div>
+      </header>
+      <main className="max-w-7xl mx-auto px-4 py-6">{children}</main>
+      <footer className="max-w-7xl mx-auto px-4 py-6 text-xs text-gray-500">
+        Mock UI for planning • Tailwind-style classes inlined • No external APIs
+      </footer>
+    </div>
+  );
+}
+
+// ---- Officer views ----
+function OverviewCards({ meters }) {
+  const total = meters.length;
+  const ok = meters.filter((m) => m.status === "ปกติ").length;
+  const warn = meters.filter((m) => m.status === "เฝ้าระวัง").length;
+  const stop = meters.filter((m) => m.status === "หยุดส่ง").length;
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="bg-white rounded-2xl border p-4">
+        <div className="flex items-center gap-2 text-gray-500 mb-2"><Gauge className="w-4 h-4"/><span>มิเตอร์ทั้งหมด</span></div>
+        <div className="text-3xl font-semibold">{total}</div>
+      </div>
+      <div className="bg-white rounded-2xl border p-4">
+        <div className="flex items-center gap-2 text-emerald-600 mb-2"><BarChart2 className="w-4 h-4"/><span>ปกติ</span></div>
+        <div className="text-3xl font-semibold">{ok}</div>
+      </div>
+      <div className="bg-white rounded-2xl border p-4">
+        <div className="flex items-center gap-2 text-amber-700 mb-2"><AlertTriangle className="w-4 h-4"/><span>เฝ้าระวัง</span></div>
+        <div className="text-3xl font-semibold">{warn}</div>
+      </div>
+      <div className="bg-white rounded-2xl border p-4">
+        <div className="flex items-center gap-2 text-rose-700 mb-2"><Clock className="w-4 h-4"/><span>หยุดส่ง</span></div>
+        <div className="text-3xl font-semibold">{stop}</div>
+      </div>
+    </div>
+  );
+}
+
+function Filters({ zone, branch, setZone, setBranch, q, setQ }) {
+  const filteredBranches = BRANCHES.filter((b) => !zone || b.zoneId === zone);
+  return (
+    <div className="bg-white border rounded-2xl p-3 flex flex-wrap items-center gap-2">
+      <div className="flex items-center gap-2">
+        <Filter className="w-4 h-4 text-gray-500"/>
+        <select className="border rounded px-2 py-1" value={zone} onChange={(e)=>{setZone(e.target.value); setBranch("");}}>
+          <option value="">ทุกเขต</option>
+          {ZONES.map(z=> <option key={z.id} value={z.id}>{z.name}</option>)}
+        </select>
+        <select className="border rounded px-2 py-1" value={branch} onChange={(e)=>setBranch(e.target.value)}>
+          <option value="">ทุกสาขา</option>
+          {filteredBranches.map(b=> <option key={b.id} value={b.id}>{b.name}</option>)}
+        </select>
+      </div>
+      <div className="ml-auto flex items-center gap-2">
+        <div className="relative">
+          <Search className="w-4 h-4 text-gray-500 absolute left-2 top-2"/>
+          <input className="border rounded pl-7 pr-2 py-1 w-64" placeholder="ค้นหา บ้านเลขที่/ผู้ใช้น้ำ/Serial" value={q} onChange={(e)=>setQ(e.target.value)}/>
+        </div>
+        <button className="inline-flex items-center gap-2 border rounded px-2 py-1 text-sm"><Download className="w-4 h-4"/>ส่งออก CSV</button>
+      </div>
+    </div>
+  );
+}
+
+function StatusPill({ status }) {
+  if (status === "ปกติ") return <Pill tone="ok">ปกติ</Pill>;
+  if (status === "เฝ้าระวัง") return <Pill tone="warn">เฝ้าระวัง</Pill>;
+  return <Pill tone="danger">หยุดส่ง</Pill>;
+}
+
+function MeterTable({ meters, onOpen }) {
+  return (
+    <div className="overflow-auto bg-white border rounded-2xl">
+      <table className="min-w-full text-sm">
+        <thead className="bg-gray-50 text-gray-600">
+          <tr>
+            <th className="text-left px-3 py-2">เขต</th>
+            <th className="text-left px-3 py-2">สาขา</th>
+            <th className="text-left px-3 py-2">บ้านเลขที่</th>
+            <th className="text-left px-3 py-2">ผู้ใช้น้ำ</th>
+            <th className="text-left px-3 py-2">Serial</th>
+            <th className="text-right px-3 py-2">ค่าอ่านล่าสุด (ม³)</th>
+            <th className="text-left px-3 py-2">อัปเดตล่าสุด</th>
+            <th className="text-left px-3 py-2">ความเชื่อมั่น</th>
+            <th className="text-left px-3 py-2">สถานะ</th>
+            <th className="px-3 py-2"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {meters.map((m) => (
+            <tr key={m.id} className="border-t hover:bg-gray-50">
+              <td className="px-3 py-2">{ZONES.find(z=>z.id===m.zoneId)?.name}</td>
+              <td className="px-3 py-2">{BRANCHES.find(b=>b.id===m.branchId)?.name}</td>
+              <td className="px-3 py-2">{m.houseNo}</td>
+              <td className="px-3 py-2">{m.customer}</td>
+              <td className="px-3 py-2 font-mono">{m.serial}</td>
+              <td className="px-3 py-2 text-right font-mono">{m.latest.toFixed(2)}</td>
+              <td className="px-3 py-2">{m.updatedAt}</td>
+              <td className="px-3 py-2">{(m.conf*100).toFixed(0)}%</td>
+              <td className="px-3 py-2"><StatusPill status={m.status}/></td>
+              <td className="px-3 py-2 text-right">
+                <button className="inline-flex items-center gap-1 text-blue-700 hover:underline" onClick={()=>onOpen(m)}>
+                  ดูรายละเอียด <ChevronRight className="w-4 h-4"/>
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function MeterDetail({ meter }) {
+  const [tab, setTab] = useState("profile");
+  const alerts = ALERTS.filter(a=>a.meterId===meter.id);
+  return (
+    <div className="bg-white border rounded-2xl p-4">
+      <div className="flex flex-wrap items-center gap-3 mb-3">
+        <h3 className="text-lg font-semibold">รายละเอียดมาตรวัดน้ำ • <span className="font-normal text-gray-600">{meter.serial}</span></h3>
+        <StatusPill status={meter.status}/>
+        <span className="text-xs text-gray-500">อัปเดตล่าสุด {meter.updatedAt}</span>
+      </div>
+      <div className="flex items-center gap-2 border-b">
+        <button onClick={()=>setTab("profile")} className={`px-3 py-2 text-sm ${tab==='profile' ? 'border-b-2 border-gray-900' : 'text-gray-500'}`}>ข้อมูลผู้ใช้น้ำ/อุปกรณ์</button>
+        <button onClick={()=>setTab("stats")} className={`px-3 py-2 text-sm ${tab==='stats' ? 'border-b-2 border-gray-900' : 'text-gray-500'}`}>การใช้น้ำ & สถิติย้อนหลัง</button>
+        <button onClick={()=>setTab("alerts")} className={`px-3 py-2 text-sm ${tab==='alerts' ? 'border-b-2 border-gray-900' : 'text-gray-500'}`}>การแจ้งเตือน</button>
+      </div>
+
+      {tab === "profile" && (
+        <div className="grid md:grid-cols-2 gap-4 pt-4">
+          <div className="border rounded-xl p-3">
+            <div className="flex items-center gap-2 text-gray-600 mb-2"><Users className="w-4 h-4"/>โปรไฟล์ผู้ใช้น้ำ</div>
+            <div className="space-y-1 text-sm">
+              <div><span className="text-gray-500">ชื่อ: </span>{meter.customer}</div>
+              <div><span className="text-gray-500">บ้านเลขที่: </span>{meter.houseNo}</div>
+              <div><span className="text-gray-500">สาขา/เขต: </span>{BRANCHES.find(b=>b.id===meter.branchId)?.name} / {ZONES.find(z=>z.id===meter.zoneId)?.name}</div>
+              <div className="flex items-center gap-1 text-gray-600"><MapPin className="w-4 h-4"/>lat {meter.lat.toFixed(3)}, lng {meter.lng.toFixed(3)}</div>
+            </div>
+          </div>
+          <div className="border rounded-xl p-3">
+            <div className="flex items-center gap-2 text-gray-600 mb-2"><Camera className="w-4 h-4"/>อุปกรณ์/มิเตอร์</div>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="text-gray-500">Serial</div><div className="font-mono">{meter.serial}</div>
+              <div className="text-gray-500">สถานะ</div><div><StatusPill status={meter.status}/></div>
+              <div className="text-gray-500">ล่าสุด (ม³)</div><div className="font-mono">{meter.latest.toFixed(2)}</div>
+              <div className="text-gray-500">ความเชื่อมั่น</div><div>{(meter.conf*100).toFixed(0)}%</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab === "stats" && (
+        <div className="pt-4 space-y-4">
+          <div className="border rounded-xl p-3">
+            <div className="flex items-center gap-2 text-gray-600 mb-2"><Database className="w-4 h-4"/>ค่าอ่านล่าสุด & ภาพอ้างอิง</div>
+            <div className="flex flex-wrap items-center gap-4 text-sm">
+              <div>ค่าอ่านล่าสุด: <span className="font-mono font-medium">{meter.latest.toFixed(2)} ม³</span></div>
+              <div>เวลา: <span className="text-gray-600">{meter.updatedAt}</span></div>
+              <div>Conf: {(meter.conf*100).toFixed(0)}%</div>
+              <button className="ml-auto inline-flex items-center gap-2 border rounded px-2 py-1 text-sm"><Download className="w-4 h-4"/>ดาวน์โหลด CSV</button>
+            </div>
+          </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="border rounded-xl p-3">
+              <div className="flex items-center gap-2 text-gray-600 mb-2"><BarChart2 className="w-4 h-4"/>การใช้น้ำรายวัน (30 วัน)</div>
+              <SparkBar data={DAILY30}/>
+            </div>
+            <div className="border rounded-xl p-3">
+              <div className="flex items-center gap-2 text-gray-600 mb-2"><BarChart2 className="w-4 h-4"/>การใช้น้ำรายเดือน (12 เดือน)</div>
+              <SparkBar data={MONTH12.map(m=>({ value: m.usage }))} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab === "alerts" && (
+        <div className="pt-4 space-y-2">
+          {alerts.length === 0 && <div className="text-sm text-gray-500">ไม่มีการแจ้งเตือน</div>}
+          {alerts.map(a => (
+            <div key={a.id} className="border rounded-xl p-3 flex items-center gap-3">
+              <Bell className={`w-4 h-4 ${a.level==='critical' ? 'text-rose-600' : 'text-amber-600'}`}/>
+              <div className="text-sm">
+                <div className="font-medium">{a.type}</div>
+                <div className="text-gray-600">{a.msg}</div>
+              </div>
+              <div className="ml-auto text-xs text-gray-500">{a.ts}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OfficerArea() {
+  const [zone, setZone] = useState("");
+  const [branch, setBranch] = useState("");
+  const [q, setQ] = useState("");
+  const [selected, setSelected] = useState(null);
+
+  const filtered = useMemo(() => {
+    return METERS.filter(m => (!zone || m.zoneId===zone) && (!branch || m.branchId===branch) && (
+      !q || [m.houseNo, m.customer, m.serial].join(" ").toLowerCase().includes(q.toLowerCase())
+    ));
+  }, [zone, branch, q]);
+
+  return (
+    <div className="space-y-4">
+      <OverviewCards meters={METERS}/>
+      <Filters zone={zone} branch={branch} setZone={setZone} setBranch={setBranch} q={q} setQ={setQ} />
+      <MeterTable meters={filtered} onOpen={setSelected}/>
+      {selected && <MeterDetail meter={selected}/>}    
+    </div>
+  );
+}
+
+// ---- Customer view ----
+function CustomerHome() {
+  const myMeter = METERS[0];
+  return (
+    <div className="grid md:grid-cols-3 gap-4">
+      <div className="md:col-span-2 space-y-4">
+        <div className="bg-white border rounded-2xl p-4">
+          <div className="flex items-center gap-2 text-gray-600 mb-2"><Droplet className="w-4 h-4"/>สรุปการใช้น้ำของฉัน</div>
+          <div className="grid sm:grid-cols-2 gap-4 text-sm">
+            <div className="border rounded-xl p-3">
+              <div className="text-gray-500">ค่าอ่านล่าสุด</div>
+              <div className="text-2xl font-mono">{myMeter.latest.toFixed(2)} ม³</div>
+              <div className="text-xs text-gray-500 mt-1">อัปเดต {myMeter.updatedAt}</div>
+            </div>
+            <div className="border rounded-xl p-3">
+              <div className="text-gray-500">สถานะ</div>
+              <div className="mt-1"><StatusPill status={myMeter.status}/></div>
+              <div className="text-xs text-gray-500 mt-1">ความเชื่อมั่น {(myMeter.conf*100).toFixed(0)}%</div>
+            </div>
+          </div>
+        </div>
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="bg-white border rounded-2xl p-4">
+            <div className="flex items-center gap-2 text-gray-600 mb-2"><BarChart2 className="w-4 h-4"/>รายวัน 30 วัน</div>
+            <SparkBar data={DAILY30}/>
+          </div>
+          <div className="bg-white border rounded-2xl p-4">
+            <div className="flex items-center gap-2 text-gray-600 mb-2"><BarChart2 className="w-4 h-4"/>รายเดือน 12 เดือน</div>
+            <SparkBar data={MONTH12.map(m=>({ value: m.usage }))}/>
+          </div>
+        </div>
+      </div>
+      <aside className="space-y-4">
+        <div className="bg-white border rounded-2xl p-4">
+          <div className="flex items-center gap-2 text-gray-600 mb-2"><Users className="w-4 h-4"/>ข้อมูลบัญชี</div>
+          <div className="text-sm space-y-1">
+            <div><span className="text-gray-500">ชื่อ: </span>{METERS[0].customer}</div>
+            <div><span className="text-gray-500">บ้านเลขที่: </span>{METERS[0].houseNo}</div>
+            <div><span className="text-gray-500">หมายเลขมิเตอร์: </span><span className="font-mono">{METERS[0].serial}</span></div>
+          </div>
+        </div>
+        <div className="bg-white border rounded-2xl p-4">
+          <div className="flex items-center gap-2 text-gray-600 mb-2"><Bell className="w-4 h-4"/>การแจ้งเตือน</div>
+          <div className="space-y-2 text-sm">
+            <div className="flex items-center gap-2"><Pill tone="warn">80%</Pill> การใช้น้ำเดือนนี้ใกล้ถึงค่าเป้าหมาย</div>
+            <div className="flex items-center gap-2"><Pill tone="ok">ปกติ</Pill> ระบบทำงานปกติ</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+export default function App() {
+  const [role, setRole] = useState("officer");
+  return (
+    <Shell role={role} setRole={setRole}>
+      {role === "officer" ? <OfficerArea/> : <CustomerHome/>}
+    </Shell>
+  );
+}

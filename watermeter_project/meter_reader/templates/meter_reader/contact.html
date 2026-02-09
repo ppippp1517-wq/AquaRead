@@ -1,0 +1,108 @@
+{% extends "meter_reader/base.html" %}
+{% block title %}Contact{% endblock %}
+{% block head %}
+<style>
+    body {
+      font-family: sans-serif;
+      background-color: #f7f9fc;
+      margin: 0;
+    }
+
+    .navbar {
+      background-color:#000000; 
+      padding: 14px 24px;
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .navbar h1 {
+      margin: 0;
+      font-size: 22px;
+    }
+
+    .navbar a {
+      color: white;
+      margin-left: 18px;
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    .navbar a:hover {
+      text-decoration: underline;
+    }
+
+    .center-container {
+      max-width: 700px;
+      margin: 40px auto;
+      background-color: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    h2 {
+      color: #000000; 
+      margin-bottom: 16px;
+    }
+
+    ul {
+      list-style: none;
+      padding-left: 0;
+      font-size: 16px;
+    }
+
+    ul li {
+      margin-bottom: 12px;
+    }
+
+    a.external-link {
+      color: #000000; 
+      text-decoration: none;
+    }
+
+    a.external-link:hover {
+      text-decoration: underline;
+    }
+
+    footer {
+      margin-top: 60px;
+      text-align: center;
+      padding: 16px;
+      background-color: #000000; 
+      color: white;
+      font-size: 13px;
+    }
+</style>
+{% endblock %}
+{% block content %}
+
+<!-- Navigation -->
+<div class="navbar">
+  <h1> AquaRead</h1>
+  <div>
+    <a href="{% url 'overview' %}">หน้าแรก</a>
+    <a href="{% url 'meter_app' %}">ใช้งานระบบ</a>
+    <a href="{% url 'contact' %}">ติดต่อ</a>
+  </div>
+</div>
+
+<!-- Contact Content -->
+<div class="center-container">
+  <h2>ติดต่อทีมพัฒนา</h2>
+  <p>หากมีข้อสงสัย หรือต้องการแนะนำเกี่ยวกับระบบ AquaRead กรุณาติดต่อเราผ่านช่องทางด้านล่าง</p>
+
+  <ul>
+    <li> อีเมล: <a href="mailto:aquaread@example.com" class="external-link">ppippp1517@gmail.com</a></li>
+    <li> เบอร์โทรศัพท์: 081-234-5678</li>
+    <li> GitHub: <a href="https://github.com/yourrepo" class="external-link" target="_blank">https://github.com/yourrepo</a></li>
+    <li> เอกสารคู่มือ: <a href="/static/manual.pdf" download class="external-link">ดาวน์โหลด PDF</a></li>
+  </ul>
+</div>
+
+<footer>
+  AquaRead ระบบอ่านค่ามิเตอร์น้ำอัตโนมัติ | Version 1.0 | พัฒนาโดยทีมวิศวกรรมคอมพิวเตอร์
+</footer>
+
+{% endblock %}

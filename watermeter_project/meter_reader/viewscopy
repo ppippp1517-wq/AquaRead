@@ -1,0 +1,216 @@
+import os
+import requests
+from django.shortcuts import render
+from django.conf import settings
+from django.http import HttpResponse
+from .utils import process_meter_image
+from django.conf import settings
+import os
+from datetime import datetime
+import base64
+from io import BytesIO
+from PIL import Image
+from django.views.decorators.csrf import csrf_exempt
+from .utils import process_meter_image  # ฟังก์ชันที่คุณใช้วิเคราะห์ภาพ
+import csv
+from django.shortcuts import render
+
+def overview_page(request):
+    return render(request, 'meter_reader/overview.html')
+
+def meter_reader_app(request):
+    recent_results = request.session.get('recent_results', [])
+    return render(request, 'meter_reader/app.html', {
+        'recent_results': recent_results,
+    })
+
+def upload_folder(request):
+    if request.method == 'POST':
+        uploaded_files = request.FILES.getlist('images')
+        save_dir = 'D:/projectCPE/uploaded_folder'
+        os.makedirs(save_dir, exist_ok=True)
+
+        results = []
+
+        for f in uploaded_files:
+            filename = f.name.split('/')[-1]
+            save_path = os.path.join(save_dir, filename)
+
+            with open(save_path, 'wb+') as dest:
+                for chunk in f.chunks():
+                    dest.write(chunk)
+
+            result = process_meter_image(save_path)
+            if result and result.get('total') is not None:
+                results.append({
+                    'filename': filename,
+                    'total': result['total']
+                })
+
+        # Save CSV
+        csv_path = os.path.join(save_dir, 'result.csv')
+        with open(csv_path, 'w', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=['filename', 'total'])
+            writer.writeheader()
+            for row in results:
+                writer.writerow(row)
+
+        #  เพิ่มประวัติใน session
+        from django.utils.timezone import now
+        history = request.session.get('recent_results', [])
+        for row in results:
+            history.insert(0, {
+                'filename': row['filename'],
+                'total': row['total'],
+                'date': now().strftime('%Y-%m-%d %H:%M')
+            })
+        request.session['recent_results'] = history[:5]
+
+        return render(request, 'meter_reader/folder_result.html', {
+            'results': results,
+            'csv_path': csv_path,
+            'recent_results': request.session.get('recent_results', [])
+        })
+
+
+@csrf_exempt
+def preview_image(request):
+    esp32_url = "http://172.20.10.3/capture"  # IP ESP32
+
+    try:
+        response = requests.get(esp32_url)
+        if response.status_code == 200:
+            # แปลงภาพเป็น base64
+            encoded = base64.b64encode(response.content).decode('utf-8')
+            base64_image = f"data:image/jpeg;base64,{encoded}"
+
+            request.session['preview_image_bytes'] = encoded  # เก็บไว้ใน session
+
+            return render(request, 'meter_reader/preview.html', {
+                'base64_image': base64_image
+            })
+        else:
+            return HttpResponse("ไม่สามารถติดต่อ ESP32", status=400)
+
+    except Exception as e:
+        return HttpResponse(f"เกิดข้อผิดพลาด: {e}", status=500)
+
+def confirm_image(request):
+    import datetime
+
+    if request.method == 'POST':
+        encoded = request.session.get('preview_image_bytes')
+        if not encoded:
+            return HttpResponse("ไม่มีภาพใน session", status=400)
+
+        image_bytes = base64.b64decode(encoded)
+
+        # เซฟภาพลง media
+        filename = f"confirmed_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+        folder = os.path.join(settings.MEDIA_ROOT, 'capture_images')
+        os.makedirs(folder, exist_ok=True)
+        path = os.path.join(folder, filename)
+
+        with open(path, 'wb') as f:
+            f.write(image_bytes)
+
+        result = process_meter_image(path)
+
+        image_url = result.get('detected_image_path', f"/media/capture_images/{filename}")
+
+        return render(request,  'meter_reader/app.html', {
+            'result': result,
+            'image_url': image_url
+        })
+
+    return HttpResponse("Method not allowed", status=405)
+
+def capture_image(request):
+    esp32_url = "http://172.20.10.3/capture"
+
+    try:
+        response = requests.get(esp32_url)
+
+        if response.status_code == 200:
+            filename = f"capture_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+
+            # เซฟภาพใน media/capture_images ที่ Django มองเห็น
+            folder = os.path.join(settings.MEDIA_ROOT, 'capture_images')
+            os.makedirs(folder, exist_ok=True)
+
+            image_path = os.path.join(folder, filename)
+            with open(image_path, 'wb') as f:
+                f.write(response.content)
+
+            image_url = f"/media/capture_images/{filename}"
+
+            return render(request,  'meter_reader/app.html', {
+                'image_url': image_url
+            })
+
+        return HttpResponse("ESP32 ไม่ตอบกลับ", status=400)
+
+    except Exception as e:
+        return HttpResponse(f"เกิดข้อผิดพลาด: {e}", status=500)
+
+# ฟังก์ชัน upload_image ยังทำงานตามปกติ
+def upload_image(request):
+    result = None
+    image_url = None
+
+    if request.method == 'POST' and request.FILES.get('image'):
+        image = request.FILES['image']
+        image_name = image.name
+
+        upload_dir = os.path.join(settings.MEDIA_ROOT, 'uploads')
+        os.makedirs(upload_dir, exist_ok=True)
+
+        image_path = os.path.join(upload_dir, image_name)
+        with open(image_path, 'wb+') as f:
+            for chunk in image.chunks():
+                f.write(chunk)
+
+        result = process_meter_image(image_path)
+        image_url = result['detected_image_path']
+
+        #  เพิ่มบันทึกประวัติ
+        if result and result.get('total') is not None:
+            from django.utils.timezone import now
+            history = request.session.get('recent_results', [])
+            history.insert(0, {
+                'filename': image_name,
+                'total': result['total'],
+                'date': now().strftime('%Y-%m-%d %H:%M')
+            })
+            request.session['recent_results'] = history[:5]
+
+    context = {
+        'result': result,
+        'image_url': image_url,
+        'recent_results': request.session.get('recent_results', [])
+    }
+
+    return render(request, 'meter_reader/app.html', context)
+
+def contact(request):
+    return render(request, 'meter_reader/contact.html')
+
+
+from django.http import JsonResponse
+from .camera import get_camera
+from django.views.decorators.cache import never_cache
+
+@never_cache
+def capture_usb(request):
+    cam = get_camera(index=1)  # เปลี่ยน index หาก USB ไม่ใช่ตัวที่ 1
+    jpeg = cam.get_jpeg()
+    if jpeg is None:
+        return JsonResponse({"error": "no frame"}, status=503)
+    resp = HttpResponse(jpeg, content_type="image/jpeg")
+    resp["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp["Pragma"] = "no-cache"
+    return resp
+
+def usb_camera_page(request):
+    # หน้าเบาๆ สำหรับดู/กดถ่าย
+    return render(request, "meter_reader/camera.html")

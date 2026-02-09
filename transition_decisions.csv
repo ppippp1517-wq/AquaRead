@@ -1,0 +1,2 @@
+file,digit_pred,is_NaN,pair,pair_conf,area_below,thr_used,final_digit
+output_0000262.png,NaN,1,9->0,1.0000,0.641176,0.60,0

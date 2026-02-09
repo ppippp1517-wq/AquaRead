@@ -1,0 +1,19 @@
+{% extends "meter_reader/base.html" %}
+{% block title %}Camera{% endblock %}
+{% block head %}
+<style>
+    body { font-family: sans-serif; padding:16px }
+    img { max-width: 100%; border:1px solid #ccc }
+    button { margin-right:8px }
+</style>
+{% endblock %}
+{% block content %}
+<!doctype html>
+  <h2>USB Camera Snapshot</h2>
+  <div>
+    <button onclick="snap()">ถ่ายภาพ</button>
+    <button onclick="toggle()">Auto (1 fps)</button>
+  </div>
+  <p></p>
+  <img id="view" src="/capture" alt="snapshot">
+{% endblock %}

@@ -1,0 +1,6 @@
+idx,final,digit_pred,is_NaN,nan_conf,digit_conf,note
+0,pending,NaN,1,1.0000,1.0000,need_pair_later
+1,pending,NaN,1,1.0000,1.0000,need_pair_later
+2,8,8,0,0.0001,0.9990,main_ok
+3,0,0,0,0.0000,0.9495,main_ok
+4,pending,NaN,1,1.0000,1.0000,need_pair_later

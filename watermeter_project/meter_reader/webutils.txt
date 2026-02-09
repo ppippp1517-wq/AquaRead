@@ -1,0 +1,512 @@
+import os, math, re, shutil
+import cv2, numpy as np
+from PIL import Image, ImageEnhance
+import pytesseract
+from ultralytics import YOLO
+from django.conf import settings
+import tensorflow as tf
+
+
+# ===== Output folders =====
+CAPTURE_DIR = r"D:/projectCPE/dataset/images/capture_images"
+DETECT_DIR  = r"D:/projectCPE/dataset/images/detect_images"
+CROP_DIR    = r"D:/projectCPE/dataset/images/cropped_images"
+CROP_CLASS0_DIR = os.path.join(CROP_DIR, "class0")
+CROP_CLASSX_DIR = os.path.join(CROP_DIR, "class1-3")
+DIGIT_CROPS_DIR = os.path.join(CROP_CLASS0_DIR, "digits")
+
+for d in [CAPTURE_DIR, DETECT_DIR, CROP_DIR, CROP_CLASS0_DIR, CROP_CLASSX_DIR, DIGIT_CROPS_DIR]:
+    os.makedirs(d, exist_ok=True)
+
+# ============================================================
+# 0) OPTIONAL DEPENDENCIES
+# ============================================================
+try:
+    import cv2.ximgproc as xip
+    _HAS_XIMGPROC = True
+except Exception:
+    _HAS_XIMGPROC = False
+
+try:
+    from skimage.morphology import skeletonize
+    _HAS_SKIMAGE = True
+except Exception:
+    _HAS_SKIMAGE = False
+
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+
+# ============================================================
+# 1) ตั้งค่าและโหลดโมเดล
+# ============================================================
+pytesseract.pytesseract.tesseract_cmd = r'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
+
+MODEL_PATH = 'D:/projectCPE/dataset/runs/detect/train12/weights/best.pt'
+model = YOLO(MODEL_PATH)
+
+# โหลดโมเดลอ่านค่าเข็ม (sin, cos)
+CNN_MODEL_PATH = 'D:/projectCPE/watermeter_project/meter_reader/modelneedle.h5'
+try:
+    cnn_model = tf.keras.models.load_model(CNN_MODEL_PATH)
+    print(f" โหลดโมเดล CNN '{CNN_MODEL_PATH}' สำเร็จ!")
+except Exception as e:
+    print(f" เกิดข้อผิดพลาดในการโหลดโมเดล CNN: {e}")
+    cnn_model = None
+
+# โหลดโมเดลอ่าน digit ดิจิทัล
+DIGIT_MODEL_PATH = r"D:/projectCPE/Train_CNN_Digital-Readout_Version_5.0.0.h5"
+try:
+    digit_classifier_model = tf.keras.models.load_model(DIGIT_MODEL_PATH)
+    print(f" โหลดโมเดล Digital CNN '{DIGIT_MODEL_PATH}' สำเร็จ!")
+except Exception as e:
+    print(f" เกิดข้อผิดพลาดในการโหลดโมเดล Digital CNN: {e}")
+    digit_classifier_model = None
+
+# ============================================================
+# 2) UTIL: อ่านขนาดอินพุตของโมเดลตัวเลข + preprocess
+# ============================================================
+def _get_digit_model_spec():
+    """Return (H, W, C, color_mode) expected by digit model."""
+    if digit_classifier_model is None:
+        return 32, 20, 3, "RGB"  # sensible default per prior code
+    _, H, W, C = digit_classifier_model.input_shape
+    color = "L" if C == 1 else "RGB"
+    return int(H), int(W), int(C), color
+
+
+def preprocess_for_digit_model(pil_img: Image.Image):
+    """Resize/convert/normalize -> np.array shape (1,H,W,C)."""
+    H, W, C, color = _get_digit_model_spec()
+    img = pil_img.convert(color)
+    img = img.resize((W, H), Image.BILINEAR)
+    arr = np.array(img, dtype=np.float32)
+    if C == 1 and arr.ndim == 2:
+        arr = np.expand_dims(arr, -1)
+    elif C == 3 and arr.ndim == 2:
+        arr = np.stack([arr, arr, arr], axis=-1)
+    arr = arr / 255.0
+    return np.expand_dims(arr, 0)
+
+# ============================================================
+# 3) DIGIT SEGMENTATION (จากไฟล์ digit_segmentation_skeleton_cut ปรับย่อ)
+# ============================================================
+
+def _clahe_grayscale(img_bgr_or_gray):
+    if isinstance(img_bgr_or_gray, np.ndarray) and img_bgr_or_gray.ndim == 3:
+        gray = cv2.cvtColor(img_bgr_or_gray, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = img_bgr_or_gray.copy()
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    return clahe.apply(gray)
+
+
+def _binarize(gray, block_size=21, C=10, gauss_ksize=3):
+    k = max(3, gauss_ksize | 1)
+    blur = cv2.GaussianBlur(gray, (k, k), 0)
+    try:
+        bs = block_size if block_size % 2 == 1 else block_size + 1
+        th = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                   cv2.THRESH_BINARY_INV, bs, C)
+        th = cv2.medianBlur(th, 3)
+    except Exception:
+        _, th = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    return th
+
+
+def _deskew(gray_or_bin):
+    if len(gray_or_bin.shape) == 3:
+        gray = cv2.cvtColor(gray_or_bin, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = gray_or_bin
+    bin_img = _binarize(gray)
+    ys, xs = np.nonzero(bin_img)
+    if len(xs) < 10:
+        return gray, 0.0
+    coords = np.column_stack((xs, ys)).astype(np.float32)
+    mean, eigvec = cv2.PCACompute(coords, mean=np.array([]))
+    vx, vy = eigvec[0]
+    angle = np.degrees(np.arctan2(vy, vx))
+    if angle < -45:
+        angle += 90
+    elif angle > 45:
+        angle -= 90
+    h, w = gray.shape[:2]
+    M = cv2.getRotationMatrix2D((w//2, h//2), angle, 1.0)
+    rot = cv2.warpAffine(gray, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+    if rot.shape[0] > rot.shape[1]:
+        rot = cv2.rotate(rot, cv2.ROTATE_90_CLOCKWISE)
+    return rot, angle
+
+
+def _thinning(binary):
+    if _HAS_XIMGPROC:
+        return xip.thinning(binary)
+    if _HAS_SKIMAGE:
+        return (skeletonize(binary > 0).astype(np.uint8) * 255)
+    # simple iterative morphology fallback
+    prev = np.zeros_like(binary)
+    skel = np.zeros_like(binary)
+    element = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3))
+    img = binary.copy()
+    while True:
+        eroded = cv2.erode(img, element)
+        temp = cv2.dilate(eroded, element)
+        temp = cv2.subtract(img, temp)
+        skel = cv2.bitwise_or(skel, temp)
+        img = eroded.copy()
+        if cv2.countNonZero(img) == 0 or np.array_equal(img, prev):
+            break
+        prev = img.copy()
+    return skel
+
+
+def _vertical_projection(binary, band=(0.30, 0.70)):
+    H, W = binary.shape
+    y0 = int(max(0, min(H-1, H*band[0])))
+    y1 = int(max(y0+1, min(H,   H*band[1])))
+    colsum = (binary[y0:y1, :] > 0).sum(axis=0).astype(np.float32)
+    if colsum.max() > 0:
+        colsum /= colsum.max()
+    k = 9
+    return np.convolve(colsum, np.ones(k)/k, mode='same')
+
+
+def _post_trim_digit(digit_gray, digit_bin):
+    # remove long frame lines near edges, then tight crop main component
+    def remove_frame_lines(bimg, v_ratio=0.60, h_ratio=0.60, edge_ratio=0.22):
+        binu = bimg.copy(); h, w = binu.shape
+        kv = cv2.getStructuringElement(cv2.MORPH_RECT, (1, max(5, int(v_ratio*h))))
+        vert = cv2.morphologyEx(binu, cv2.MORPH_OPEN, kv)
+        mask_v = np.zeros_like(binu); m = max(1, int(edge_ratio*w))
+        mask_v[:, :m] = vert[:, :m]; mask_v[:, w-m:] = vert[:, w-m:]
+        binu = cv2.subtract(binu, mask_v)
+        kh = cv2.getStructuringElement(cv2.MORPH_RECT, (max(5, int(h_ratio*w)), 1))
+        hori = cv2.morphologyEx(binu, cv2.MORPH_OPEN, kh)
+        mask_h = np.zeros_like(binu); mY = max(1, int(edge_ratio*h))
+        mask_h[:mY, :] = hori[:mY, :]; mask_h[h-mY:, :] = hori[h-mY:, :]
+        binu = cv2.subtract(binu, mask_h)
+        return binu
+
+    cleaned = remove_frame_lines(digit_bin)
+    if cv2.countNonZero(cleaned) == 0:
+        cleaned = digit_bin.copy()
+    ys, xs = np.where(cleaned > 0)
+    if len(xs) == 0:
+        return digit_gray, cleaned
+    x1, x2 = xs.min(), xs.max()+1
+    y1, y2 = ys.min(), ys.max()+1
+    return digit_gray[y1:y2, x1:x2], cleaned[y1:y2, x1:x2]
+
+
+def _pad_square(gray, bin_img, size=None):
+    h, w = gray.shape[:2]
+    s = max(h, w)
+    top = (s-h)//2; bottom = s-h-top
+    left = (s-w)//2; right = s-w-left
+    g = cv2.copyMakeBorder(gray, top, bottom, left, right, cv2.BORDER_CONSTANT, value=255)
+    b = cv2.copyMakeBorder(bin_img, top, bottom, left, right, cv2.BORDER_CONSTANT, value=0)
+    if size:
+        g = cv2.resize(g, (size, size), interpolation=cv2.INTER_AREA)
+        b = cv2.resize(b, (size, size), interpolation=cv2.INTER_NEAREST)
+    return g, b
+
+
+def smart_split_5digits(pil_strip, debug=False):
+    """รับ PIL ของแถบดิจิทัล 5 หลัก -> คืนลิสต์ PIL 5 ภาพ (ตกแต่งแล้ว)
+       ถ้าล้มเหลวจะ fallback เป็นการหั่นเท่ากัน 5 ส่วน"""
+    img_bgr = cv2.cvtColor(np.array(pil_strip.convert('RGB')), cv2.COLOR_RGB2BGR)
+    gray0 = _clahe_grayscale(img_bgr)
+    gray, _ = _deskew(gray0)
+    bin_img = _binarize(gray)
+
+    # โปรไฟล์แนวตั้ง + หาจุดแยก (minima snap-to-grid)
+    prof = _vertical_projection(bin_img)
+    W = len(prof)
+    step = max(1.0, W/5.0)
+    win = int(step*0.35)
+    minima = [x for x in range(1, W-1) if prof[x] <= prof[x-1] and prof[x] <= prof[x+1]]
+    cuts = []
+    for i in range(1,5):
+        target = int(round(i*step))
+        lo, hi = max(1, target-win), min(W-2, target+win)
+        cands = [x for x in minima if lo <= x <= hi]
+        cuts.append(min(cands, key=lambda x: prof[x]) if cands else target)
+    cuts = sorted(set(int(c) for c in cuts))
+    if len(cuts) != 4:
+        # Fallback: equal split
+        h, w = gray.shape
+        sw = w//5
+        return [pil_strip.crop((i*sw, 0, (i+1)*sw if i<4 else w, h)) for i in range(5)]
+
+    # crop ทีละหลัก (tight crop y, ลบกรอบ, keep main comp, pad square)
+    H, W = bin_img.shape
+    xs = [0] + cuts + [W]
+    out_pils = []
+    for i in range(5):
+        x1, x2 = xs[i], xs[i+1]
+        roi_bin = bin_img[:, max(0, x1-2):min(W, x2+2)]
+        roi_gray = gray[:, max(0, x1-2):min(W, x2+2)]
+        rowsum = (roi_bin > 0).sum(axis=1)
+        ys = np.where(rowsum > 0)[0]
+        if len(ys) > 0:
+            y1, y2 = int(ys[0]), int(ys[-1]+1)
+        else:
+            y1, y2 = 0, roi_bin.shape[0]
+        dg, db = roi_gray[y1:y2, :], roi_bin[y1:y2, :]
+        dg, db = _post_trim_digit(dg, db)
+        dg, db = _pad_square(dg, db, size=None)
+        out_pils.append(Image.fromarray(dg))
+    return out_pils
+def save_digit_crops(strip_img_pil: Image.Image, base_stem: str):
+    """
+    ตัดเลข 5 หลักจากภาพ strip ของ class0 แล้วรีไซซ์ให้ตรงกับโมเดลดิจิทัล
+    จากนั้นเซฟเป็นไฟล์: DIGIT_CROPS_DIR / f"{base_stem}_digit{i}.png"
+    """
+    H, W, C, color = _get_digit_model_spec()
+    digit_pils = smart_split_5digits(strip_img_pil)  # list[PIL] ยาว 5
+    out_paths = []
+    for i, dimg in enumerate(digit_pils):
+        resized = dimg.convert(color).resize((W, H), Image.BILINEAR)
+        outp = os.path.join(DIGIT_CROPS_DIR, f"{base_stem}_digit{i}.png")
+        resized.save(outp)
+        out_paths.append(outp)
+    return out_paths
+
+# ============================================================
+# 4) อ่านเลขดิจิทัลทีละหลักด้วยโมเดล CNN (ใช้การแยกอัจฉริยะ)
+# ============================================================
+
+def predict_digits_from_strip(strip_img_pil):
+    if digit_classifier_model is None:
+        return None
+    digit_crops = smart_split_5digits(strip_img_pil)
+    digits = []
+    for dimg in digit_crops:
+        x = preprocess_for_digit_model(dimg)
+        probs = digit_classifier_model.predict(x, verbose=0)[0]
+        idx = int(np.argmax(probs))
+        digits.append(str(idx))
+    return ''.join(digits)
+
+# ============================================================
+# 5) ฟังก์ชันอ่านค่าเข็ม
+# ============================================================
+
+def detect_needle_value(image_path):
+    if cnn_model is None:
+        return None
+    img = Image.open(image_path).resize((32,32)).convert("RGB")
+    arr = np.array(img, dtype=np.float32)
+    batch = np.reshape(arr, [1,32,32,3])
+    sin_val, cos_val = cnn_model.predict(batch, verbose=0)[0]
+    rad = np.arctan2(sin_val, cos_val)
+    return ((rad/(2*math.pi)) % 1) * 10
+
+# ============================================================
+# 6) Alignment (จัดแนวภาพ)
+# ============================================================
+class WaterMeterAligner:
+    def __init__(self):
+        self.detector = cv2.SIFT_create(nfeatures=8000)
+        self.good_match_percent = 0.2
+
+    def preprocess_meter_image(self, image):
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        return cv2.GaussianBlur(clahe.apply(gray), (3,3), 0)
+
+    def detect_and_compute(self, image):
+        return self.detector.detectAndCompute(self.preprocess_meter_image(image), None)
+
+    def match_features(self, desc1, desc2):
+        if desc1 is None or desc2 is None:
+            return []
+        matcher = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
+        matches = sorted(matcher.match(desc1, desc2), key=lambda x: x.distance)
+        return matches[:int(len(matches)*self.good_match_percent)]
+
+    def detect_circular_features(self, image):
+        gray = self.preprocess_meter_image(image)
+        return cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1, 50,
+                                param1=50, param2=30, minRadius=50, maxRadius=300)
+
+    def align_meter_images(self, reference_img, image_to_align):
+        print("🔹 Detecting keypoints...")
+        kp1, desc1 = self.detect_and_compute(reference_img)
+        kp2, desc2 = self.detect_and_compute(image_to_align)
+        print(f"   Reference keypoints: {len(kp1)} | Test keypoints: {len(kp2)}")
+
+        matches = self.match_features(desc1, desc2)
+        print(f"🔹 Good matches: {len(matches)}")
+
+        if len(matches) < 4:
+            print("❌ Not enough matches for homography")
+            return image_to_align, None, len(matches), 0.0
+
+        pts1 = np.float32([kp1[m.queryIdx].pt for m in matches]).reshape(-1,1,2)
+        pts2 = np.float32([kp2[m.trainIdx].pt for m in matches]).reshape(-1,1,2)
+        H, mask = cv2.findHomography(pts2, pts1, cv2.RANSAC, 3.0)
+        if H is None:
+            print("❌ Could not compute homography")
+            return image_to_align, None, len(matches), 0.0
+
+        h, w = reference_img.shape[:2]
+        aligned = cv2.warpPerspective(image_to_align, H, (w,h))
+        inliers = int(np.sum(mask)) if mask is not None else 0
+        quality = inliers / max(1, len(matches))
+        print(f"✅ Alignment quality: {quality:.2f} ({inliers}/{len(matches)} inliers)")
+
+        # ตรวจสอบ Circular Alignment
+        ref_circles = self.detect_circular_features(reference_img)
+        aligned_circles = self.detect_circular_features(aligned)
+        if ref_circles is not None and aligned_circles is not None:
+            ref_center = (ref_circles[0][0][0], ref_circles[0][0][1])
+            aligned_center = (aligned_circles[0][0][0], aligned_circles[0][0][1])
+            circular_error = float(np.hypot(ref_center[0]-aligned_center[0], ref_center[1]-aligned_center[1]))
+            print(f"🔹 Circular alignment error: {circular_error:.1f} px")
+        else:
+            print("⚠️ Circular alignment check skipped (no circle found)")
+
+        os.makedirs("alignment_results", exist_ok=True)
+        aligned_path = "alignment_results/aligned_water_meter.jpg"
+        cv2.imwrite(aligned_path, aligned)
+        np.save("alignment_results/transformation_matrix.npy", H)
+        print("✓ Alignment results saved")
+        return aligned, H, len(matches), quality
+
+# ============================================================
+# 7) Crop + Rotate ด้วย Hough Circle
+# ============================================================
+
+def crop_and_rotate_hough(image_path, rotation_angle=-5.0):
+    img = cv2.imread(image_path)
+    if img is None:
+        return None
+    h, w = img.shape[:2]
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    blurred = cv2.GaussianBlur(gray, (9,9), 2)
+    edges = cv2.Canny(blurred, 50, 150)
+    min_r, max_r = int(min(h,w)*0.3), int(min(h,w)*0.7)
+    circles = cv2.HoughCircles(edges, cv2.HOUGH_GRADIENT, 1.2, h//4,
+                               param1=100, param2=60, minRadius=min_r, maxRadius=max_r)
+    if circles is None:
+        print("⚠️ HoughCircle ไม่พบ ใช้ภาพเดิม")
+        return img
+    x, y, r = np.round(circles[0][0]).astype(int)
+    mask = np.zeros((h,w), dtype=np.uint8)
+    cv2.circle(mask, (x,y), r, 255, -1)
+    top, bottom = max(y-r,0), min(y+r,h)
+    left, right = max(x-r,0), min(x+r,w)
+    circular_roi = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    circular_roi = np.where(mask[...,None]==255, circular_roi, 255)
+    roi = circular_roi[top:bottom, left:right]
+    mask_cropped = mask[top:bottom, left:right]
+    center = (roi.shape[1]//2, roi.shape[0]//2)
+    M = cv2.getRotationMatrix2D(center, rotation_angle, 1.0)
+    rotated = cv2.warpAffine(roi, M, (roi.shape[1], roi.shape[0]),
+                             flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(255,255,255))
+    mask_rot = cv2.warpAffine(mask_cropped, M, (mask_cropped.shape[1], mask_cropped.shape[0]),
+                              flags=cv2.INTER_NEAREST, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+    return cv2.cvtColor(np.where(mask_rot[...,None]==255, rotated, 255), cv2.COLOR_RGB2BGR)
+
+# ============================================================
+# 8) Pipeline หลัก
+# ============================================================
+
+def process_meter_image(image_path):
+    # Save original upload into capture_images
+    base_name = os.path.basename(image_path)
+    captured_path = os.path.join(CAPTURE_DIR, base_name)
+    try:
+        if os.path.isfile(image_path):
+            shutil.copy(image_path, captured_path)
+    except Exception as e:
+        print("[WARN] cannot save uploaded image:", e)
+
+    print("\n=== WATER METER PIPELINE START ===")
+
+    # Step 1: Crop + Rotate
+    preprocessed_img = crop_and_rotate_hough(image_path, rotation_angle=-5.0)
+
+    # Step 2: Alignment
+    reference_path = "D:/projectCPE/water_meter_alignment/Reference.jpg"
+    ref_img = cv2.imread(reference_path)
+    test_img = cv2.resize(preprocessed_img, (750, 750))
+    aligner = WaterMeterAligner()
+    aligned_img, H, match_count, quality = aligner.align_meter_images(ref_img, test_img)
+
+    # Step 3: YOLO Detection
+    result = model.predict(source="alignment_results/aligned_water_meter.jpg", conf=0.25, verbose=False)[0]
+    df = result.to_df()
+    if df is None or len(df) == 0:
+        return {'digital_x':'0','x001':'0','x0001':'0','x00001':'0','total':'0.000','detected_image_path':None}
+
+    # Step 4: อ่านค่าจาก CNN + Digit CNN
+    original_img = Image.fromarray(cv2.cvtColor(aligned_img, cv2.COLOR_BGR2RGB))
+    ocr_result_by_class = {}
+
+    for class_id in [0,1,2,3]:
+        rows = df[df['class'] == class_id]
+        if rows.empty:
+            ocr_result_by_class[class_id] = '0'
+            continue
+        best = rows.loc[rows['confidence'].idxmax()]
+        x1, y1, x2, y2 = int(best['box']['x1']), int(best['box']['y1']), int(best['box']['x2']), int(best['box']['y2'])
+        crop = original_img.crop((x1, y1, x2, y2))
+        enhance = ImageEnhance.Contrast(crop).enhance(2.0)
+        # Save cropped boxes by class (RGB)
+        base = os.path.splitext(os.path.basename(image_path))[0]
+        if class_id == 0:
+            crop_save_path = os.path.join(CROP_CLASS0_DIR, f"{base}_class0.png")
+        else:
+            crop_save_path = os.path.join(CROP_CLASSX_DIR, f"{base}_class{class_id}.png")
+        enhance.convert("RGB").save(crop_save_path)
+
+        temp = f'temp_crop_class{class_id}.png'
+        enhance.save(temp)
+
+        if class_id == 0:
+            # ใช้ smart segmentation + digit CNN
+            if digit_classifier_model is not None:
+                int_part = predict_digits_from_strip(enhance)
+                if not int_part or len(int_part) != 5:
+                    # fallback OCR ถ้า segmentation ล้มเหลว
+                    text = pytesseract.image_to_string(enhance, config='--psm 7 -c tessedit_char_whitelist=0123456789')
+                    cleaned = re.sub(r'\D','', text.strip())
+                    int_part = cleaned[:5].ljust(5,'0') if cleaned else '00000'
+                ocr_result_by_class[class_id] = int_part
+            else:
+                text = pytesseract.image_to_string(enhance, config='--psm 7 -c tessedit_char_whitelist=0123456789')
+                cleaned = re.sub(r'\D','', text.strip())
+                ocr_result_by_class[class_id] = cleaned[:5].ljust(5,'0') if cleaned else '00000'
+        else:
+            val = detect_needle_value(temp)
+            ocr_result_by_class[class_id] = str(int(round(val))) if val is not None else '0'
+        try:
+            os.remove(temp)
+        except Exception:
+            pass
+
+    int_part = ocr_result_by_class.get(0, '00000')
+    decimal1 = ocr_result_by_class.get(1, '0')
+    decimal2 = ocr_result_by_class.get(2, '0')
+    decimal3 = ocr_result_by_class.get(3, '0')
+    combined = f"{int_part}.{decimal1}{decimal2}{decimal3}"
+
+    # Step 5: Save detect image for Django
+    yolo_path = os.path.join(DETECT_DIR, f"detected_{os.path.basename(image_path)}")
+    cv2.imwrite(yolo_path, result.plot())
+
+
+    media_path = os.path.join(settings.MEDIA_ROOT, 'outputs', os.path.basename(yolo_path))
+    os.makedirs(os.path.dirname(media_path), exist_ok=True)
+    shutil.copy(yolo_path, media_path)
+
+    print("\n=== ALIGNMENT SUMMARY ===")
+    print(f"Feature matches: {match_count}")
+    print(f"Alignment quality: {quality:.2f}/1.0")
+    print("Results saved in alignment_results/")
+    print("=== PIPELINE DONE ===\n")
+
+    return {'digital_x':int_part, 'x001':decimal1, 'x0001':decimal2, 'x00001':decimal3,
+            'total':combined, 'detected_image_path':f"/media/outputs/{os.path.basename(yolo_path)}"}

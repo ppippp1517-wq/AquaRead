@@ -1,0 +1,163 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AquaRead – Login</title>
+
+  <!-- ฟอนต์ -->
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+
+    /* ------------------ สำคัญที่สุด ป้องกันชิดขอบ iPhone ------------------ */
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    /* ------------------ Layout พื้นหลัง ------------------ */
+    body {
+      background: #e8f3fc;
+      font-family: 'Prompt', sans-serif;
+
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+
+      min-height: 100vh;
+
+      animation: fadeIn 0.9s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ------------------ โลโก้ ------------------ */
+    .logo {
+      width: 150px;
+      margin-bottom: 32px;
+      filter: drop-shadow(0 6px 10px rgba(0,0,0,0.18));
+      animation: popIn 0.6s ease;
+    }
+
+    @keyframes popIn {
+      0% { opacity: 0; transform: scale(0.9); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    /* ------------------ กล่องฟอร์ม ------------------ */
+    .login-card {
+      width: 100%;
+      max-width: 360px;
+
+      background: white;
+      padding: 30px 24px;
+      border-radius: 22px;
+      box-shadow: 0 20px 35px rgba(0,0,0,0.12);
+
+      text-align: center;
+
+      margin: 0 24px; /* ← ระยะเว้นซ้าย–ขวาให้สวย ไม่ชิดจอ */
+      animation: fadeInUp 1s ease;
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ------------------ Label ------------------ */
+    label {
+      display: block;
+      font-size: 15px;
+      font-weight: 600;
+      text-align: left;
+      margin-left: 6px;
+      margin-bottom: 6px;
+      color: #0b2a4a;
+    }
+
+    /* ------------------ Input ------------------ */
+    .input {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 18px;
+
+      font-size: 16px;
+
+      border-radius: 12px;
+      border: 1px solid #d1d5db;
+      background: #f1f5f9;
+    }
+
+    /* ------------------ ปุ่ม ------------------ */
+    .btn-login {
+      width: 100%;
+      padding: 14px;
+      background: #0284c7;
+      border: none;
+      border-radius: 12px;
+      color: white;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(2, 132, 199, 0.35);
+      transition: 0.15s ease;
+    }
+
+    .btn-login:hover {
+      background: #0369a1;
+      transform: translateY(-2px);
+    }
+
+    /* ------------------ ลิงก์ ------------------ */
+    .extra-links {
+      margin-top: 16px;
+      font-size: 14px;
+      color: #0284c7;
+    }
+
+    a { color: #0284c7; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+  </style>
+</head>
+
+<body>
+
+  
+
+  <!-- กล่องฟอร์ม -->
+  <div class="login-card">
+    <form method="POST" action="{% url 'login' %}?next={% url 'meter_app' %}">
+      {% csrf_token %}
+
+      <label>username</label>
+      <input name="username" type="text" class="input" placeholder="เช่น 012345" required>
+
+      <label>password</label>
+      <input name="password" type="password" class="input" placeholder="กรอกรหัสผ่าน" required>
+
+      <button type="submit" class="btn-login">เข้าสู่ระบบ</button>
+    </form>
+
+    <div class="extra-links">
+      <a href="#">ลืมรหัสผ่าน?</a><br>
+      <a href="{% url 'start_guest' %}">ลงทะเบียนผู้ใช้งานใหม่</a>
+    </div>
+  </div>
+
+</body>
+</html>

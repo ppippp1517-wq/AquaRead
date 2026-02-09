@@ -1,0 +1,20 @@
+{
+  "name": "AquaRead",
+  "short_name": "AquaRead",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1f3b73",
+  "icons": [
+    {
+      "src": "/static/meter_reader/img/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/meter_reader/img/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

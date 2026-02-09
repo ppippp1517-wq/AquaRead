@@ -1,0 +1,74 @@
+เข้าenv
+
+PS C:\Users\ASUS> cd D:\projectCPE\yolov8_env\Scripts.\activate
+PS D:\projectCPE\yolov8_env\Scripts> .\activate
+
+
+
+รันเซิร์ฟเวอร์
+cd D:\backup\projectCPE\watermeter_project
+..\yolov8_env\Scripts\python.exe manage.py runserver
+
+เว็บแอพ
+cd D:\backup\projectCPE\watermeter_project
+..\yolov8_env\Scripts\python.exe manage.py runserver 0.0.0.0:8000
+
+
+
+เวลาเปลี่ยนไวฟายดูไอพีใหม่
+
+เปิด PowerShell
+
+พิมพ์ (หรือวาง) คำสั่งนี้แล้วกด Enter
+
+
+Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.InterfaceAlias -match 'Wi-Fi'} | Select-Object -ExpandProperty IPAddress
+
+ic_aquaread_logo2
+
+
+ดูกล้อง
+
+http://localhost:8000/camera
+
+
+const char* ssid = "WISIT_5G";  // Your WiFi SSID
+const char* password = "0966437039"; 
+
+
+const char* ssid = "Comen1301";  // Your WiFi SSID
+const char* password = "comen1301"; 
+
+เปิด vscode ctrl + shift + p
+select interpreter 
+เลือก envs tf1 
+cd watermeter_project
+python manage.py runserver ## รัน server Django
+
+ไฟล์ model modelneedle.h5 ที่เทรนแล้ว
+
+train
+cd D:\projectCPE
+ .\yolov8_env\Scripts\activate
+yolo task=detect mode=train model=yolov8n.pt data=D:/projectCPE/dataset_digital/digit.yaml epochs=50 imgsz=640
+
+
+
+ก่อนรันตัดกรอบภาพให้เข้า
+PS D:\projectCPE> cd water_meter_alignment 
+
+
+
+
+จับคู่คอมกับโทรศัพท์ ผ่านไวฟาย
+
+PS C:\WINDOWS\System32> adb pair 172.20.10.2:37783
+Enter pairing code: 860147
+Successfully paired to 172.20.10.2:37783 [guid=adb-RF8W509ENKD-zuHlJC]
+PS C:\WINDOWS\System32> adb connect 172.20.10.2:42855
+connected to 172.20.10.2:42855
+PS C:\WINDOWS\System32> adb devices
+List of devices attached
+172.20.10.2:42855       device
+
+PS C:\WINDOWS\System32>

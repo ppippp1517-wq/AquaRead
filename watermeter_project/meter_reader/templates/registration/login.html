@@ -1,0 +1,297 @@
+{% load static %}
+{% extends "meter_reader/base_public.html" %}
+
+{% block title %}เข้าสู่ระบบ · AquaRead{% endblock %}
+
+{% block head %}
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --ink:#0f172a;
+    --muted:#64748b;
+    --border:#e5e7eb;
+    --accent:#0ea5e9;
+    --accent-dark:#0f2741;
+    --card:#ffffff;
+    --bg:#f6fbff;
+  }
+
+  body{
+    margin:0;
+    background:linear-gradient(180deg,#e0f2fe,#f8fbff 70%);
+    font-family:"Prompt", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Thai", sans-serif;
+    color:var(--ink);
+  }
+
+  .auth-page{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px 16px;
+  }
+
+  .auth-card{
+    width:100%;
+    max-width:440px;
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:18px;
+    box-shadow:0 8px 30px rgba(0,0,0,.08);
+    overflow:hidden;
+  }
+
+  .auth-head{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:18px 20px;
+    border-bottom:1px solid var(--border);
+    background:linear-gradient(90deg,#e0f2fe,#f0f9ff);
+  }
+  .auth-head img{height:32px}
+  .auth-title-main{font-weight:700;font-size:16px}
+  .auth-title-sub{font-size:12px;color:var(--muted)}
+
+  .auth-body{padding:20px}
+
+  .auth-tabs{
+    display:flex;
+    gap:18px;
+    border-bottom:1px solid var(--border);
+    margin-bottom:16px;
+  }
+  .auth-tab{
+    padding:10px 4px;
+    font-weight:700;
+    font-size:14px;
+    cursor:pointer;
+    border-bottom:2px solid transparent;
+    color:var(--muted);
+  }
+  .auth-tab.active{
+    color:var(--ink);
+    border-color:var(--accent);
+  }
+
+  .auth-grid{
+    display:grid;
+    gap:12px;
+  }
+
+  .muted{
+    color:var(--muted);
+    font-size:13px;
+  }
+
+  .auth-label{
+    display:block;
+    font-size:14px;
+    font-weight:600;
+    margin-bottom:4px;
+  }
+
+  .input{
+    width:100%;
+    padding:10px 12px;
+    border-radius:10px;
+    border:1px solid var(--border);
+    font-size:15px;
+    background:#fff;
+  }
+  .input:focus{
+    outline:none;
+    border-color:var(--accent);
+    box-shadow:0 0 0 1px rgba(14,165,233,.3);
+  }
+
+  .auth-actions{
+    margin-top:12px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+
+  .auth-btn{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    padding:12px;
+    border:0;
+    border-radius:10px;
+    background:var(--accent-dark);
+    color:white;
+    font-size:15px;
+    font-weight:700;
+    cursor:pointer;
+  }
+
+  .auth-btn.ghost{
+    background:white;
+    border:1px solid var(--border);
+    color:var(--ink);
+  }
+
+  .auth-footer{
+    padding:14px 20px;
+    border-top:1px solid var(--border);
+    background:#f9fafb;
+    font-size:13px;
+    color:var(--muted);
+    text-align:center;
+  }
+
+  .errorlist, .auth-errors{
+    margin:4px 0;
+    padding:8px 10px;
+    border-radius:8px;
+    background:#fee2e2;
+    color:#b91c1c;
+    font-size:13px;
+    list-style:none;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+  <div class="auth-card">
+
+    <!-- Header -->
+    <div class="auth-head">
+      <img src="{% static 'meter_reader/aqua_logo1.png' %}" alt="">
+      <div>
+        <div class="auth-title-main">AquaRead • เข้าสู่ระบบ</div>
+        <div class="auth-title-sub">ระบบมิเตอร์อัจฉริยะสำหรับเจ้าหน้าที่</div>
+      </div>
+    </div>
+
+    <div class="auth-body">
+
+      <!-- Tabs -->
+      <div class="auth-tabs">
+        <div class="auth-tab active" data-tab="login">เข้าสู่ระบบ</div>
+        <div class="auth-tab" data-tab="register">ลงทะเบียน</div>
+      </div>
+
+      <!-- Login Panel -->
+      <form id="panel-login" class="auth-panel"
+            method="post"
+            action="{% url 'login' %}?next={% url 'meter_app' %}">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+          <div class="auth-errors">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="auth-grid">
+          <div class="muted">กรุณาเข้าสู่ระบบเพื่อใช้งานระบบมิเตอร์อัจฉริยะ (AMI)</div>
+
+          <div>
+            <label class="auth-label">รหัสพนักงาน</label>
+            <input class="input" type="text" name="username" placeholder="เช่น 012345"
+                   value="{{ form.username.value|default_if_none:'' }}" required>
+          </div>
+
+          <div>
+            <label class="auth-label">รหัสผ่าน</label>
+            <input class="input" type="password" name="password" required>
+          </div>
+
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#4b5563;">
+            <input type="checkbox" checked style="accent-color:var(--accent)"> จดจำรหัสพนักงาน
+          </label>
+        </div>
+
+        <div class="auth-actions">
+          <button type="submit" class="auth-btn">
+            เข้าสู่ระบบ
+          </button>
+          <div class="muted">หากลืมรหัสผ่าน โปรดติดต่อผู้ดูแลระบบ</div>
+        </div>
+      </form>
+
+      <!-- Register Panel -->
+      <form id="panel-register" class="auth-panel"
+            method="post" action="{% url 'start_guest' %}"
+            style="display:none">
+        {% csrf_token %}
+
+        <div class="auth-grid">
+          <div class="muted">ลงทะเบียนเพื่อขอสิทธิ์ใช้งาน</div>
+
+          <div class="form-row">
+            <label class="auth-label">ชื่อ-สกุล</label>
+            <input class="input" name="full_name" required>
+          </div>
+
+          <div class="form-row">
+            <label class="auth-label">อีเมลราชการ</label>
+            <input class="input" type="email" name="email" required>
+          </div>
+
+          <div class="form-row">
+            <label class="auth-label">สาขา/หน่วยงาน</label>
+            <input class="input" name="dept">
+          </div>
+
+          <div class="form-row">
+            <label class="auth-label">รหัสพนักงาน</label>
+            <input class="input" name="emp_id">
+          </div>
+
+          <div class="form-row">
+            <label class="auth-label">รหัสผ่าน</label>
+            <input class="input" type="password" name="password1" required>
+          </div>
+
+          <div class="form-row">
+            <label class="auth-label">ยืนยันรหัสผ่าน</label>
+            <input class="input" type="password" name="password2" required>
+          </div>
+
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;">
+            <input type="checkbox" required style="accent-color:var(--accent)">
+            ยอมรับเงื่อนไขการใช้งาน
+          </label>
+        </div>
+
+        <div class="auth-actions">
+          <button type="submit" class="auth-btn ghost">ส่งคำขอใช้งาน</button>
+        </div>
+      </form>
+
+    </div>
+
+    <div class="auth-footer">
+      <a href="{% url 'overview' %}">กลับหน้าแรก</a>
+    </div>
+
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const tabs = document.querySelectorAll(".auth-tab");
+  const login = document.getElementById("panel-login");
+  const register = document.getElementById("panel-register");
+
+  tabs.forEach(t => {
+    t.addEventListener("click", () => {
+      tabs.forEach(x => x.classList.remove("active"));
+      t.classList.add("active");
+
+      if (t.dataset.tab === "login") {
+        login.style.display = "";
+        register.style.display = "none";
+      } else {
+        login.style.display = "none";
+        register.style.display = "";
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

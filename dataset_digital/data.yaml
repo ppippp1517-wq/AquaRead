@@ -1,0 +1,4 @@
+path: D:/projectCPE/dataset_digital
+train: images/train
+val: images/val
+names: [digital0, digital1, digital2, digital3, digital4]

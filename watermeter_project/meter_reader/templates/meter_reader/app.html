@@ -1,0 +1,1333 @@
+{% extends "meter_reader/base_app.html" %}
+{% load static %}
+{% block title %}AquaRead – App (Officer){% endblock %}
+
+{% block head %}
+<style>
+  :root{
+  --bg: #e7f3ff;
+  --card: #ffffff;
+
+  --text: #0f172a;
+  --text-muted: #64748b;
+
+  --border: #e5e7eb;
+  --primary: #2563eb;
+  --primary-soft: #e0f2fe;
+}
+
+body.dark{
+  --bg: #020617;
+  --card: #0f172a;
+
+  --text: #e5e7eb;
+  --text-muted: #9ca3af;
+
+  --border: #1f2937;
+  --primary: #60a5fa;
+  --primary-soft: #1e3a8a;
+}
+
+
+
+
+  /* ซ่อน header global จาก base_app ในหน้านี้ */
+  header,
+  .site-header,
+  .app-header,
+  .topbar-global,
+  .navbar-global{
+    display:none !important;
+  }
+
+  /* ====== MOBILE-FIRST BASE ====== */
+  html,body{
+    margin:0;
+    padding:0;
+  }
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    font-size:14px;
+    line-height:1.5;
+  }
+
+  /* ====== HERO ด้านบนแบบแอพ PWA ====== */
+  .app-hero{
+  position: relative;
+  color: #ffffff;
+  padding: 28px 16px 34px;
+  border-radius: 0 0 26px 26px;
+  overflow: hidden;
+
+  /* ภาพ + overlay */
+  background:
+    linear-gradient(
+      rgba(2, 6, 23, 0.55),
+      rgba(2, 6, 23, 0.55)
+    ),
+    url("{% static 'meter_reader/water-meter-bg.png' %}");
+  
+  background-size: cover;
+  background-position: center;
+}
+
+  .app-hero-inner{
+    max-width:960px;
+    margin:0 auto;
+    text-align:center;
+  }
+  .app-hero-logo{
+    width:52px;
+    height:52px;
+    border-radius:999px;
+    background:rgba(255,255,255,0.16);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin:4px auto 8px;
+    box-shadow:0 6px 14px rgba(15,23,42,0.20);
+  }
+  .app-hero-logo img{
+    width:34px;
+    height:34px;
+    object-fit:contain;
+  }
+  .app-hero-title{
+    font-size: 22px;
+  font-weight: 800;
+  text-shadow: 0 2px 8px rgba(0,0,0,.35);
+  }
+  .app-hero-sub{
+    font-size: 13px;
+  opacity: .95;
+  text-shadow: 0 1px 6px rgba(0,0,0,.3);
+  }
+
+  /* ====== CONTAINER หลักใต้ hero ====== */
+  .shell{
+    max-width:960px;
+    margin:0 auto;
+    padding:12px 14px 72px; /* เผื่อพื้นที่ bottom-nav */
+  }
+
+  /* ปุ่ม generic */
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    padding:10px 12px;
+    border-radius:12px;
+    border:1px solid var(--border);
+    background:#ffffff;
+    color: var(--text);
+    font-size:14px;
+    cursor:pointer;
+    text-decoration:none;
+    white-space:nowrap;
+  }
+  .btn-solid{
+    background:var(--primary);
+    color:#ffffff;
+    border-color:var(--primary);
+  }
+  .btn-ghost{
+    background:transparent;
+  }
+  .btn:disabled{
+    opacity:.6;
+    cursor:not-allowed;
+  }
+
+  .spacer{ flex:1; }
+
+  .card{
+    background:var(--card);
+    color: var(--text);
+    border:1px solid var(--border);
+    border-radius:18px;
+    padding:16px 14px;
+    box-shadow:0 4px 10px rgba(15,23,42,0.04);
+  }
+  .muted{ color: var(--text-muted);}
+
+  /* ====== SECTION: บริการแบบกริด 3 ช่อง (เหมือน PWA Plus) ====== */
+  .section-header{
+    margin-top:4px;
+    margin-bottom:4px;
+  }
+  .section-title{
+    font-weight:700;
+    font-size:16px;
+  }
+  .section-sub{
+    font-size:12px;
+    color:var(--muted);
+  }
+
+  .service-grid{
+    margin-top:10px;
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:10px;
+  }
+
+  .service-card{
+    border:none;
+    outline:none;
+    background: var(--card);
+    color: var(--text);
+    border-radius:18px;
+    box-shadow:0 6px 14px rgba(15,23,42,0.08);
+    padding:12px 6px 10px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:space-between;
+    text-align:center;
+    min-height:96px;
+    cursor:pointer;
+  }
+  .service-card:active{
+    transform:translateY(1px);
+    box-shadow:0 3px 8px rgba(15,23,42,0.12);
+  }
+  .service-icon{
+    width:40px;
+    height:40px;
+    border-radius:16px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:22px;
+    background: var(--primary-soft);
+    color: var(--primary);
+    margin-bottom:6px;
+  }
+  .service-label{
+    font-size:12px;
+    font-weight:600;
+    color: var(--text);
+    line-height:1.3;
+  }
+.stat-label,
+.alert-meta,
+.section-sub{
+  color: var(--text-muted);
+}
+
+.stat-value,
+.alert-title,
+.section-title{
+  color: var(--text);
+}
+
+  /* ====== การ์ดสรุปสถานะรอบบิล (ย่อ) ====== */
+  .stats-overview{
+    margin-top:16px;
+    padding:14px 14px 12px;
+    border-radius:18px;
+    background: var(--card);
+    box-shadow:0 4px 10px rgba(15,23,42,0.06);
+  }
+  .stats-overview-title{
+    font-size:13px;
+    font-weight:600;
+    margin-bottom:8px;
+  }
+  .stats-row{
+    display:flex;
+    justify-content:space-between;
+    gap:8px;
+  }
+  .stat-item{
+    flex:1;
+    background: var(--card);
+    border-radius:14px;
+    padding:8px 8px 6px;
+    text-align:center;
+  }
+  .stat-label{
+    font-size:11px;
+    color:var(--muted);
+  }
+  .stat-value{
+    font-size:16px;
+    font-weight:800;
+    margin-top:2px;
+  }
+  .stat-pill{
+    margin-top:4px;
+    display:inline-flex;
+    padding:2px 8px;
+    border-radius:999px;
+    font-size:10px;
+    font-weight:600;
+  }
+  .stat-pill.blue{ background:#e0f2fe; color:#075985; }
+  .stat-pill.green{ background:#dcfce7; color:#166534; }
+  .stat-pill.yellow{ background:#fef9c3; color:#854d0e; }
+  .stat-pill.red{ background:#fee2e2; color:#b91c1c; }
+
+  /* ====== CARD อื่น ๆ (หน้าอื่นยังใช้ได้) ====== */
+  .cards{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:10px;
+    margin-top:12px;
+  }
+
+  /* ฟิลเตอร์ + ค้นหา + ตาราง (ใช้หน้า meters) */
+  .actions{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  .input{
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:9px 10px;
+    color:var(--ink);
+    background:#ffffff;
+    font-size:14px;
+  }
+  .table-wrapper{
+    margin-top:10px;
+  }
+  .table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13px;
+  }
+  .table th,
+  .table td{
+    padding:8px 10px;
+    border-top:1px solid var(--border);
+    text-align:left;
+  }
+  .table thead th{
+    background:#f8fafc;
+    color:#334155;
+    border-top:0;
+  }
+
+  .pill-ok,
+  .pill-warn,
+  .pill-danger{
+    padding:2px 8px;
+    border-radius:999px;
+    font-size:12px;
+    font-weight:700;
+    display:inline-flex;
+    align-items:center;
+  }
+  .pill-ok{
+    background:#dcfce7;
+    color:#166534;
+  }
+  .pill-warn{
+    background:#fef3c7;
+    color:#92400e;
+  }
+  .pill-danger{
+    background:#ffe4e6;
+    color:#be123c;
+  }
+
+  tr.latest-row{ background:#f0fdf4; }
+  tr.latest-row:hover{ background:#e8f7ed; }
+
+  .sep{ height:1px; background:var(--border); margin:12px 0; }
+
+  /* ====== Modal Upload (Bottom sheet บนมือถือ) ====== */
+  .overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(15,23,42,.45);
+    display:none;
+    place-items:flex-end;
+    z-index:50;
+  }
+  .overlay.open{ display:grid; }
+
+  .modal{
+    width:100%;
+    max-width:960px;
+    max-height:90vh;
+    background:#ffffff;
+    border-radius:20px 20px 0 0;
+    border-top:1px solid var(--border);
+    box-shadow:0 -6px 20px rgba(15,23,42,0.2);
+    overflow:hidden;
+  }
+  .modal-h{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:12px 14px;
+    border-bottom:1px solid var(--border);
+  }
+  .modal-b{
+    padding:14px;
+    overflow:auto;
+    max-height:calc(90vh - 52px);
+  }
+
+  .tabs{
+    display:flex;
+    gap:8px;
+    margin-left:auto;
+  }
+  .tab{
+    padding:6px 10px;
+    font-size:13px;
+    font-weight:600;
+    border-radius:999px;
+    border:1px solid var(--border);
+    background:#ffffff;
+    cursor:pointer;
+  }
+  .tab.active{
+    background:var(--primary);
+    color:#ffffff;
+    border-color:var(--primary);
+  }
+
+  /* ====== Bottom Navigation ====== */
+  .bottom-nav{
+    position:fixed;
+    left:0;
+    right:0;
+    bottom:0;
+    z-index:30;
+    background:#ffffff;
+    border-top:1px solid var(--border);
+    box-shadow:0 -4px 12px rgba(15,23,42,0.06);
+  }
+  .bottom-nav-inner{
+    max-width:960px;
+    margin:0 auto;
+    padding:6px 10px 8px;
+    display:flex;
+    justify-content:space-between;
+    gap:4px;
+  }
+  .bottom-item{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:2px;
+    font-size:11px;
+    color:var(--muted);
+    text-decoration:none;
+    cursor:pointer;
+  }
+  .bottom-item span.icon{
+    width:24px;
+    height:24px;
+    border-radius:999px;
+    border:1px solid transparent;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .bottom-item.active{
+    color:var(--primary);
+    font-weight:600;
+  }
+  .bottom-item.active span.icon{
+    border-color:var(--primary);
+    background:var(--primary-soft);
+  }
+  .bottom-item .icon{
+  width: 24px;
+  height: 24px;
+  display: block;
+  margin: 0 auto 4px;
+  opacity: 0.7;
+  transition: opacity .2s;
+}
+.bottom-item.active .icon{
+  opacity: 1;
+  filter: brightness(0) saturate(100%) invert(24%) sepia(83%) saturate(1824%) hue-rotate(205deg) brightness(93%) contrast(97%);
+}
+
+.bottom-nav-inner {
+  max-width: 420px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-around; /* ปรับให้ช่องเว้นเท่ากัน */
+  align-items: center;
+  padding: 4px 0;
+}
+.bottom-item .icon {
+  width: 32px;       /* ✅ ขยายความกว้าง */
+  height: 32px;      /* ✅ ขยายความสูง */
+  display: block;
+  margin: 0 auto 6px; /* ✅ เว้นระยะด้านล่างเพิ่มนิด */
+  opacity: 0.85;
+  transition: opacity .2s;
+}
+
+.bottom-item.active .icon {
+  opacity: 1;
+  filter: brightness(0) saturate(100%) invert(24%) sepia(83%) saturate(1824%) hue-rotate(205deg) brightness(93%) contrast(97%);
+}
+
+
+
+  /* Page switch */
+  .page{ display:none; }
+  .page.active{ display:block; }
+
+  /* ====== TABLE → CARD VIEW บนมือถือ ====== */
+  @media (max-width:640px){
+    .table thead{ display:none; }
+    .table,
+    .table tbody,
+    .table tr,
+    .table td{
+      display:block;
+      width:100%;
+    }
+    .table tr{
+      background:#ffffff;
+      border-radius:16px;
+      margin-bottom:10px;
+      overflow:hidden;
+      box-shadow:0 4px 10px rgba(15,23,42,0.04);
+    }
+    .table td{
+      border:none;
+      border-top:1px solid var(--border);
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:8px;
+      font-size:13px;
+    }
+    .table td:first-child{
+      border-top:none;
+      padding-top:10px;
+    }
+    .table td:last-child{
+      padding-bottom:10px;
+    }
+    .table td::before{
+      content:attr(data-label);
+      font-weight:600;
+      color:var(--muted);
+      flex-shrink:0;
+      margin-right:6px;
+    }
+    .table td[data-label=""]::before{
+      content:"";
+      margin:0;
+    }
+  }
+  /* ===== Alert Cards ===== */
+.alert-card{
+  padding:14px;
+}
+
+.alert-row{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+}
+
+.alert-icon{
+  font-size:22px;
+  margin-top:2px;
+}
+
+.alert-content{
+  flex:1;
+}
+
+.alert-title{
+  font-weight:700;
+  font-size:14px;
+}
+
+.alert-desc{
+  font-size:13px;
+  margin-top:2px;
+}
+
+.alert-meta{
+  font-size:11px;
+  color:var(--muted);
+  margin-top:4px;
+}
+
+.alert-badge{
+  font-size:11px;
+  font-weight:700;
+  padding:4px 8px;
+  border-radius:999px;
+  white-space:nowrap;
+}
+
+.alert-badge.red{
+  background:#fee2e2;
+  color:#b91c1c;
+}
+.alert-badge.yellow{
+  background:#fef3c7;
+  color:#92400e;
+}
+.alert-badge.blue{
+  background:#e0f2fe;
+  color:#075985;
+}
+.profile-row{
+  display:flex;
+  justify-content:space-between;
+  padding:6px 0;
+  font-size:13px;
+}
+.profile-row .value{
+  color: var(--text);
+}
+
+.profile-row .label{
+  color:var(--muted);
+}
+
+.setting-item{
+  background: var(--card);
+  color: var(--text);
+  width:100%;
+  text-align:center;
+  padding:10px 8px 8px;
+  border-radius:14px;
+  border:1px solid var(--border);
+  background:#ffffff;
+  margin-bottom:8px;
+  cursor:pointer;
+}
+body.dark .setting-item:active{
+  background: #020617;
+}
+
+body.dark .card{
+  box-shadow:none;
+}
+
+body.dark .service-card{
+  background:#111827;
+}
+
+body.dark .bottom-nav{
+  background:#020617;
+}
+
+body.dark .table thead th{
+  background:#020617;
+  color:#e5e7eb;
+}
+.theme-toggle{
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 1000;
+
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 4px 12px rgba(0,0,0,.15);
+
+  font-size: 20px;
+  cursor: pointer;
+  transition: all .25s ease;
+}
+
+body.dark .theme-toggle{
+  background: #020617;
+  color: #e5e7eb;
+}
+
+.setting-item{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:14px 16px;
+  border-radius:12px;
+  border:1px solid var(--border);
+  background:var(--card);
+  margin-bottom:10px;
+  font-size:14px;
+}
+
+.setting-item:active{
+  background: rgba(0,0,0,.04);
+}
+
+body.dark .setting-item:active{
+  background: rgba(255,255,255,.06);
+}
+.setting-toggle{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  cursor:default;
+}
+.alert-badge.red{
+  background: #7f1d1d;
+  color: #fecaca;
+}
+
+.alert-badge.yellow{
+  background: #78350f;
+  color: #fde68a;
+}
+
+.alert-badge.blue{
+  background: #1e3a8a;
+  color: #bfdbfe;
+}
+body{
+  background: var(--bg);
+  color: var(--text);
+}
+
+.shell{
+  color: var(--ink);
+}
+
+/* iOS-like switch */
+.switch{
+  position:relative;
+  width:44px;
+  height:24px;
+}
+.switch input{
+  opacity:0;
+  width:0;
+  height:0;
+}
+.slider{
+  position:absolute;
+  inset:0;
+  background:#cbd5f5;
+  border-radius:999px;
+  transition:.25s;
+}
+.slider:before{
+  content:"";
+  position:absolute;
+  height:18px;
+  width:18px;
+  left:3px;
+  top:3px;
+  background:white;
+  border-radius:50%;
+  transition:.25s;
+}
+.switch input:checked + .slider{
+  background:#2563eb;
+}
+.switch input:checked + .slider:before{
+  transform:translateX(20px);
+}
+.stat-label{
+  font-size:11px;
+  color: var(--muted);
+}
+
+.stat-value{
+  font-size:18px;
+  font-weight:800;
+  color: var(--ink);
+}
+.stat-item{
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.stat-item:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,.15);
+}
+*{
+  color: inherit;
+}
+
+
+</style>
+{% endblock %}
+
+{% block content %}
+
+
+
+{% if user.is_staff %}
+
+
+
+<!-- Modal upload -->
+<div id="uModal" class="overlay" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="uTitle">
+    <div class="modal-h">
+      <strong id="uTitle">บันทึกค่าใหม่ — อัปโหลด/ถ่ายภาพเพื่อดีเทค</strong>
+      <button type="button" class="btn btn-ghost" data-close>ปิด</button>
+    </div>
+
+    <div class="modal-b">
+      <div class="actions" style="margin-bottom:8px">
+        <div>เลือกมิเตอร์:</div>
+        <input id="uMeter" class="input" placeholder="เช่น SPP-01 / Serial" />
+        <div class="tabs">
+          <button class="tab active" data-tab="single" type="button">ภาพเดี่ยว</button>
+          <button class="tab" data-tab="folder" type="button">โฟลเดอร์</button>
+          <button class="tab" data-tab="webcam" type="button">Webcam</button>
+        </div>
+      </div>
+
+      <!-- single -->
+      <div id="p-single" class="panel">
+        <div class="muted" style="margin-bottom:8px">อัปโหลดภาพเดี่ยว (JPEG/PNG)</div>
+        <form method="POST" action="{% url 'upload_image' %}"
+              enctype="multipart/form-data"
+              class="actions" id="formSingle">
+          {% csrf_token %}
+          <input id="singleFile" type="file" name="image" accept="image/*" required class="input">
+          <input type="text" name="meter_id" value="SPP-01" placeholder="Meter ID" class="input">
+          <button id="btnDetectSingle" class="btn btn-solid" type="submit" disabled>Detect</button>
+        </form>
+
+        <div id="singlePreviewWrap" style="display:none; margin-top:10px">
+          <img id="singlePreview" alt="preview"
+               style="max-height:260px; border:1px solid var(--border); border-radius:12px; width:100%; object-fit:contain;">
+        </div>
+      </div>
+
+      <!-- folder -->
+      <div id="p-folder" class="panel" style="display:none">
+        <div class="muted" style="margin-bottom:8px">อัปโหลดทั้งโฟลเดอร์ภาพ</div>
+        <form method="POST" action="{% url 'upload_folder' %}"
+              enctype="multipart/form-data" class="actions">
+          {% csrf_token %}
+          <input type="file" name="images" webkitdirectory multiple required class="input">
+          <input type="text" name="meter_id" value="SPP-01" placeholder="Meter ID" class="input">
+          <button class="btn btn-solid" type="submit">Detect Batch</button>
+        </form>
+      </div>
+
+      <!-- webcam -->
+      <div id="p-webcam" class="panel" style="display:none">
+        <div class="muted" style="margin-bottom:8px">ถ่ายภาพจากกล้องเว็บ</div>
+        <img src="{% url 'stream' %}" alt="Live stream"
+             style="width:100%;max-width:680px;border:1px solid var(--border);border-radius:10px">
+        <div class="actions" style="margin-top:8px">
+          <form method="GET" action="{% url 'preview_image' %}">
+            <button class="btn btn-solid" type="submit">Snap & Detect</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="sep"></div>
+      <div class="actions" style="justify-content:flex-end">
+        <button class="btn" data-close type="button">ยกเลิก</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section class="shell">
+
+ <!-- 🏠 DASHBOARD ผู้จัดการ -->
+<div id="page-dashboard" class="page active">
+
+  <!-- HERO -->
+  <div class="app-hero">
+    <div class="app-hero-inner">
+      
+      <div class="app-hero-title">AquaRead</div>
+      <div class="app-hero-sub">
+        ระบบอ่านค่ามิเตอร์น้ำอัจฉริยะ สำหรับผู้จัดการหอพัก
+      </div>
+    </div>
+  </div>
+
+  <div class="shell">
+
+    <!-- 📊 สถานะรอบบิล -->
+    <div class="card">
+      <div class="stats-overview-title">สถานะรอบบิลปัจจุบัน</div>
+      <div class="stats-row">
+        <div class="stat-item">
+          <div class="stat-label">ทั้งหมด</div>
+          <div class="stat-value">75</div>
+          <span class="stat-pill blue">ห้อง</span>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">อ่านแล้ว</div>
+          <div class="stat-value">92</div>
+          <span class="stat-pill green">ปกติ</span>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">ผิดปกติ</div>
+          <div class="stat-value">8</div>
+          <span class="stat-pill red">ตรวจสอบ</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 📰 ข่าว / ประกาศ -->
+    <div class="card" style="margin-top:12px;">
+      <strong>📢 ข่าว / ประกาศ</strong>
+      <ul style="margin:8px 0 0;padding-left:18px;font-size:13px;">
+        <li>แจ้งปิดรอบบิลประจำเดือน ก.ย.</li>
+        <li>ระบบ AI อ่านมิเตอร์อัปเดตเวอร์ชันใหม่</li>
+        <li>กรุณาตรวจสอบห้องที่ใช้น้ำผิดปกติ</li>
+      </ul>
+    </div>
+
+    <!-- ⚠️ แจ้งเตือนล่าสุด -->
+    <div class="card" style="margin-top:12px;">
+      <strong>⚠️ แจ้งเตือนล่าสุด</strong>
+      <ul style="margin:8px 0 0;padding-left:18px;font-size:13px;">
+        <li>ห้อง 305 – ใช้น้ำสูงผิดปกติ</li>
+        <li>ห้อง 412 – ยังไม่ได้อ่านค่า</li>
+      </ul>
+    </div>
+
+  </div>
+</div>
+
+
+</section>
+
+<!-- 🧩 หน้าบริการ -->
+<div id="page-services" class="page">
+
+  <!-- หัวข้อ -->
+  <div class="section-header">
+    <div class="section-title">บริการ AquaRead</div>
+    <div class="section-sub">เลือกเมนูที่ต้องการใช้งาน</div>
+  </div>
+
+  <div class="service-grid">
+
+    <!-- บันทึกค่าน้ำ -->
+    <button type="button" class="service-card primary" id="svc-upload">
+      <div class="service-icon">📷</div>
+      <div class="service-label">บันทึกค่าน้ำ</div>
+    </button>
+
+    <!-- ห้องยังไม่ได้อ่าน -->
+    <button type="button" class="service-card" data-goto="meters">
+      <span class="service-badge">25</span>
+      <div class="service-icon">📝</div>
+      <div class="service-label">ยังไม่ได้อ่าน</div>
+    </button>
+
+    <!-- ค่าน้ำผิดปกติ -->
+    <button type="button" class="service-card warning" data-goto="alerts">
+      <span class="service-badge warn">8</span>
+      <div class="service-icon">⚠️</div>
+      <div class="service-label">ค่าน้ำผิดปกติ</div>
+    </button>
+
+    <!-- รายการห้อง -->
+    <button type="button" class="service-card" data-goto="meters">
+      <div class="service-icon">🏢</div>
+      <div class="service-label">รายการห้อง</div>
+    </button>
+
+    
+
+  </div>
+</div>
+
+
+  <!-- หน้า 2: ค่ามิเตอร์ (เหมือนเดิม) -->
+  <div id="page-meters" class="page">
+    <div class="card">
+      <div class="muted">รายการห้อง / มิเตอร์ทั้งหมด</div>
+      <div class="actions" style="margin-top:8px">
+        <span class="muted">ตัวกรอง:</span>
+        <select class="btn" style="flex:1;max-width:150px">
+          <option>ทุกอาคาร</option>
+        </select>
+        <select class="btn" style="flex:1;max-width:150px">
+          <option>ทุกสถานะ</option>
+          <option>ปกติ</option>
+          <option>ค่าน้ำผิดปกติ</option>
+          <option>ยังไม่ได้อ่าน</option>
+        </select>
+        <div class="spacer"></div>
+        <input id="qSearch" class="input" placeholder="ค้นหา ห้อง/ชื่อผู้พัก/Serial" style="flex:1;min-width:160px">
+        <button class="btn">ส่งออก CSV รอบนี้</button>
+      </div>
+
+      <div class="table-wrapper">
+        <table id="meterTable" class="table">
+          <thead>
+          <tr>
+            <th>อาคาร</th>
+            <th>ชั้น/โซน</th>
+            <th>ห้อง</th>
+            <th>ผู้พัก</th>
+            <th>Serial มิเตอร์</th>
+            <th style="text-align:right">ค่าน้ำล่าสุด (ม³)</th>
+            <th>อัปเดตล่าสุด</th>
+            <th>สถานะ</th>
+            <th></th>
+          </tr>
+          </thead>
+          <tbody>
+          {% for r in latest_batch %}
+            <tr class="latest-row">
+              <td data-label="อาคาร">{{ r.zone }}</td>
+              <td data-label="ชั้น/โซน">{{ r.branch }}</td>
+              <td data-label="ห้อง">{{ r.house_no }}</td>
+              <td data-label="ผู้พัก">{{ r.customer }}</td>
+              <td data-label="Serial มิเตอร์"><code>{{ r.serial }}</code></td>
+              <td data-label="ค่าน้ำล่าสุด (ม³)" style="text-align:right">
+                <code>{{ r.latest|floatformat:2 }}</code>
+              </td>
+              <td data-label="อัปเดตล่าสุด">{{ r.updated_at }}</td>
+              <td data-label="สถานะ">
+                {% if r.status == 'ปกติ' %}
+                  <span class="pill-ok">ปกติ</span>
+                {% elif r.status == 'เฝ้าระวัง' %}
+                  <span class="pill-warn">ค่าน้ำผิดปกติ</span>
+                {% else %}
+                  <span class="pill-danger">ยังไม่ได้อ่าน/หยุดส่ง</span>
+                {% endif %}
+              </td>
+              <td data-label="">
+                <a href="#detail" class="btn btn-ghost" style="padding:6px 10px;font-size:13px;">ดูรายละเอียด</a>
+              </td>
+            </tr>
+          {% empty %}
+          {% endfor %}
+
+          <!-- ตัวอย่าง mock -->
+          <tr>
+            <td data-label="อาคาร">ตึกเหนือ</td>
+            <td data-label="ชั้น/โซน">ชั้น 8</td>
+            <td data-label="ห้อง">808</td>
+            <td data-label="ผู้พัก">คุณสมชาย ใจดี</td>
+            <td data-label="Serial มิเตอร์"><code>SPP-NE-000101</code></td>
+            <td data-label="ค่าน้ำล่าสุด (ม³)" style="text-align:right"><code>1842.37</code></td>
+            <td data-label="อัปเดตล่าสุด">2025-09-21 08:10</td>
+            <td data-label="สถานะ"><span class="pill-ok">ปกติ</span></td>
+            <td data-label=""><a href="#detail" class="btn btn-ghost" style="padding:6px 10px;font-size:13px;">ดูรายละเอียด</a></td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+<!-- หน้า 3: แจ้งเตือน (เวอร์ชันสมจริง) -->
+<div id="page-alerts" class="page">
+
+  <div class="section-header">
+    <div class="section-title">แจ้งเตือนล่าสุด</div>
+    <div class="section-sub">เหตุการณ์ที่ต้องตรวจสอบในรอบบิลนี้</div>
+  </div>
+
+  <div class="cards">
+
+    <!-- Alert: ค่าน้ำผิดปกติ -->
+    <div class="card alert-card danger">
+      <div class="alert-row">
+        <div class="alert-icon">⚠️</div>
+        <div class="alert-content">
+          <div class="alert-title">ห้อง 305</div>
+          <div class="alert-desc">
+            ค่าน้ำรอบนี้สูงกว่าค่าเฉลี่ย <b>3 เท่า</b>
+          </div>
+          <div class="alert-meta">⏱ 10 นาทีที่แล้ว</div>
+        </div>
+        <div class="alert-badge red">ด่วน</div>
+      </div>
+    </div>
+
+    <!-- Alert: ยังไม่ได้อ่าน -->
+    <div class="card alert-card warn">
+      <div class="alert-row">
+        <div class="alert-icon">🕒</div>
+        <div class="alert-content">
+          <div class="alert-title">ห้อง 412</div>
+          <div class="alert-desc">
+            ยังไม่ได้อ่านค่ามิเตอร์ในรอบบิลนี้
+          </div>
+          <div class="alert-meta">⏱ 2 ชั่วโมงที่แล้ว</div>
+        </div>
+        <div class="alert-badge yellow">รอตรวจ</div>
+      </div>
+    </div>
+
+    <!-- Alert: ภาพไม่ชัด -->
+    <div class="card alert-card info">
+      <div class="alert-row">
+        <div class="alert-icon">📷</div>
+        <div class="alert-content">
+          <div class="alert-title">ห้อง 508</div>
+          <div class="alert-desc">
+            ภาพมิเตอร์ไม่ชัด กรุณาถ่ายใหม่
+          </div>
+          <div class="alert-meta">⏱ เมื่อวานนี้</div>
+        </div>
+        <div class="alert-badge blue">ตรวจสอบ</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+  <!-- หน้า 4: ตั้งค่า -->
+<div id="page-profile" class="page">
+
+  <div class="card">
+    <h3 style="margin:0 0 6px;">👤 โปรไฟล์เจ้าหน้าที่</h3>
+    <div class="sep"></div>
+
+
+
+    <div class="profile-row">
+      <span class="label">ชื่อผู้ใช้</span>
+      <span class="value">{{ user.username }}</span>
+    </div>
+
+    {% if user.email %}
+    <div class="profile-row">
+      <span class="label">อีเมล</span>
+      <span class="value">{{ user.email }}</span>
+    </div>
+    {% endif %}
+
+    <div class="profile-row">
+      <span class="label">บทบาท</span>
+      <span class="value">เจ้าหน้าที่หอพัก</span>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px;">
+  <h4 style="margin:0 0 12px;">⚙️ การตั้งค่า</h4>
+
+  <button class="setting-item">
+    🔔 การแจ้งเตือน
+  </button>
+
+  <button class="setting-item">
+    📄 เกี่ยวกับ AquaRead
+  </button>
+
+  <!-- 🌙 Dark Mode -->
+  <div class="setting-item setting-toggle">
+    <span>🌙 โหมดกลางคืน</span>
+    <label class="switch">
+      <input type="checkbox" id="toggleDark">
+      <span class="slider"></span>
+    </label>
+  </div>
+</div>
+
+
+  <div class="card" style="margin-top:12px;">
+    <form method="post" action="{% url 'logout' %}">
+      {% csrf_token %}
+      <button class="btn btn-solid" style="width:100%;">ออกจากระบบ</button>
+    </form>
+  </div>
+
+</div>
+
+
+</section>
+<nav class="bottom-nav">
+  <div class="bottom-nav-inner">
+
+    <a href="#" class="bottom-item active" data-page="dashboard">
+      <img class="icon" src="{% static 'meter_reader/icons/dashboard.svg' %}" alt="Home">
+      <span>หน้าหลัก</span>
+    </a>
+
+    <a href="#" class="bottom-item" data-page="services">
+      <img class="icon" src="{% static 'meter_reader/icons/menu.svg' %}" alt="Services">
+      <span>บริการ</span>
+    </a>
+
+    <a href="#" class="bottom-item" data-page="alerts">
+      <img class="icon" src="{% static 'meter_reader/icons/notification.svg' %}" alt="Notifications">
+      <span>แจ้งเตือน</span>
+    </a>
+
+    <a href="#" class="bottom-item" data-page="profile">
+      <img class="icon" src="{% static 'meter_reader/icons/setting.svg' %}" alt="Settings">
+      <span>ตั้งค่า</span>
+    </a>
+
+  </div>
+</nav>
+
+
+
+{% else %}
+<section class="shell">
+  <div class="card">จำกัดสิทธิ์การเข้าถึง — เฉพาะเจ้าหน้าที่เท่านั้น</div>
+</section>
+{% endif %}
+
+<script>
+(function(){
+  {% if user.is_staff %}
+  // modal upload
+  const overlay = document.getElementById('uModal');
+  const tabs = overlay.querySelectorAll('.tab');
+  const panels = {
+    single: overlay.querySelector('#p-single'),
+    folder: overlay.querySelector('#p-folder'),
+    webcam: overlay.querySelector('#p-webcam'),
+  };
+  function openModal(){ overlay.classList.add('open'); }
+  function closeModal(){ overlay.classList.remove('open'); }
+  function switchTab(name){
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.tab===name));
+    Object.keys(panels).forEach(k => panels[k].style.display = (k===name?'':'none'));
+  }
+  switchTab('single');
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) closeModal(); });
+  overlay.querySelectorAll('[data-close]').forEach(el=> el.addEventListener('click', closeModal));
+  tabs.forEach(t => t.addEventListener('click', ()=> switchTab(t.dataset.tab)));
+  document.getElementById('btnOpenUpload')?.addEventListener('click', openModal);
+  document.getElementById('btnOpenUpload2')?.addEventListener('click', openModal);
+
+  // service shortcuts ที่เปิด modal
+  document.getElementById('svc-upload')?.addEventListener('click', openModal);
+  document.getElementById('svc-folder')?.addEventListener('click', ()=> {
+    openModal();
+    switchTab('folder');
+  });
+  document.getElementById('svc-webcam')?.addEventListener('click', ()=> {
+    openModal();
+    switchTab('webcam');
+  });
+
+  // single preview
+  const fileInput = document.getElementById('singleFile');
+  const detectBtn = document.getElementById('btnDetectSingle');
+  const previewWrap = document.getElementById('singlePreviewWrap');
+  const previewImg  = document.getElementById('singlePreview');
+  let objectUrl = null;
+  if (fileInput){
+    fileInput.addEventListener('change', () => {
+      const f = fileInput.files && fileInput.files[0];
+      if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
+      if (f) {
+        objectUrl = URL.createObjectURL(f);
+        previewImg.src = objectUrl;
+        previewWrap.style.display = 'block';
+        detectBtn.disabled = false;
+      } else {
+        previewWrap.style.display = 'none';
+        previewImg.removeAttribute('src');
+        detectBtn.disabled = true;
+      }
+    });
+  }
+  document.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeModal(); });
+  {% endif %}
+})();
+
+(function(){
+  // instant search ในหน้า "ค่ามิเตอร์"
+  const q = document.getElementById('qSearch');
+  const table = document.getElementById('meterTable');
+  if (!q || !table) return;
+
+  const rows = Array.from(table.querySelectorAll('tbody tr'));
+  function textOfRow(tr){
+    const tds = tr.querySelectorAll('td');
+    const house = (tds[2]?.textContent || '').toLowerCase();
+    const cust  = (tds[3]?.textContent || '').toLowerCase();
+    const serial= (tds[4]?.textContent || '').toLowerCase();
+    return house + ' ' + cust + ' ' + serial;
+  }
+  let tm = null;
+  q.addEventListener('input', () => {
+    clearTimeout(tm);
+    tm = setTimeout(() => {
+      const s = q.value.trim().toLowerCase();
+      rows.forEach(tr => {
+        const show = !s || textOfRow(tr).includes(s);
+        tr.style.display = show ? '' : 'none';
+      });
+    }, 80);
+  });
+})();
+
+// สลับหน้าแดชบอร์ด / ค่ามิเตอร์ / แจ้งเตือน / โปรไฟล์
+(function(){
+  const pages = {
+    dashboard: document.getElementById('page-dashboard'),
+    services: document.getElementById('page-services'),
+    meters: document.getElementById('page-meters'),
+    alerts: document.getElementById('page-alerts'),
+    profile: document.getElementById('page-profile'),
+  };
+  const navItems = document.querySelectorAll('.bottom-item');
+
+  function showPage(name){
+    Object.keys(pages).forEach(key=>{
+      if(pages[key]) pages[key].classList.toggle('active', key===name);
+    });
+    navItems.forEach(item=>{
+      item.classList.toggle('active', item.dataset.page===name);
+    });
+    // เลื่อนขึ้นบนสุดเวลาเปลี่ยนแท็บ
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+
+  navItems.forEach(item=>{
+    item.addEventListener('click', (e)=>{
+      e.preventDefault();
+      const target = item.dataset.page;
+      showPage(target);
+    });
+  });
+
+  // ปุ่มลัดบนแดชบอร์ดให้ไปแท็บอื่น
+  document.querySelectorAll('[data-goto]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const target = btn.dataset.goto;
+      showPage(target);
+    });
+  });
+})();
+(function(){
+  const toggle = document.getElementById('toggleDark');
+  const body = document.body;
+
+  // โหลดค่าเดิม
+  if(localStorage.getItem('darkMode') === 'on'){
+    body.classList.add('dark');
+    toggle.checked = true;
+  }
+
+  toggle?.addEventListener('change', ()=>{
+    body.classList.toggle('dark');
+    localStorage.setItem(
+      'darkMode',
+      body.classList.contains('dark') ? 'on' : 'off'
+    );
+  });
+})();
+
+</script>
+
+{% endblock %}

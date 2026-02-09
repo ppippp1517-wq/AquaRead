@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Water Meter Reader</title>
+</head>
+<body>
+    <div class="center-container">
+        <!-- ส่วน Overview อธิบายระบบ -->
+        <fieldset class="form-section" id="overview">
+            <legend> Overview</legend>
+            <p>ระบบ AquaRead เป็น Web Application สำหรับอ่านค่ามิเตอร์น้ำโดยใช้ AI </p>
+            <ul style="text-align: left; margin-left: 20px;">
+                <li>อัปโหลดภาพจากเครื่องหรือโฟลเดอร์</li>
+                <li>ถ่ายภาพผ่าน WEBCAM และตรวจจับค่าอัตโนมัติ</li>
+                <li>บันทึกผลลัพธ์ออกมาเป็น .csv ได้</li>
+            </ul>
+        </fieldset>
+
+        <h2>AquaRead</h2>
+
+        <!-- กลุ่ม 1: อัปโหลดภาพเดี่ยว -->
+        <fieldset class="form-section">
+            <legend>อัปโหลดภาพเดี่ยว</legend>
+            <form method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <label for="file-upload" class="custom-file-upload">Choose File</label>
+                <input id="file-upload" type="file" name="image" accept="image/*" required>
+                <span id="file-name" class="file-info"></span>
+                <img id="preview-image" style="display:none; max-width: 100%; margin-top: 12px; border: 1px solid #ccc; border-radius: 6px;" alt="Preview">
+                <button type="submit" class="btn-submit">Detect Value</button>
+            </form>
+        </fieldset>
+
+        <!-- กลุ่ม 2: อัปโหลดโฟลเดอร์ -->
+        <fieldset class="form-section">
+            <legend> อัปโหลดโฟลเดอร์ภาพ</legend>
+            <form method="POST" action="{% url 'upload_folder' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <label for="folder-upload" class="custom-file-upload">Choose Folder</label>
+                <input id="folder-upload" type="file" name="images" webkitdirectory multiple required>
+                <span id="folder-count" class="file-info"></span>
+                <button type="submit" class="btn-submit">Detect Folder</button>
+            </form>
+        </fieldset>
+
+        <!-- กลุ่ม 3: ถ่ายภาพจาก webcam -->
+        <fieldset class="form-section">
+            <legend> WEBCAM </legend>
+            <form method="GET" action="{% url 'preview_image' %}">
+                <button type="submit" class="btn-submit">Capture Image</button>
+            </form>
+           
+        </fieldset>
+
+        <!-- แสดงภาพ Preview แบบ base64 ก่อนเซฟ -->
+        {% if base64_image %}
+            <h3>Preview ภาพที่ถ่าย</h3>
+            <img src="{{ base64_image }}" alt="Preview" style="max-width: 400px; border: 1px solid #aaa;"><br><br>
+
+            <form method="POST" action="{% url 'confirm_image' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn-submit"> ใช้ภาพนี้</button>
+            </form>
+
+            <a href="{% url 'preview_image' %}" class="btn-submit"> ถ่ายใหม่</a>
+        {% endif %}
+
+        {% if result and image_url %}
+            <h3>ภาพที่ตรวจจับแล้ว</h3>
+            <img src="{{ image_url }}" alt="Detected Image" style="max-width: 400px; border: 1px solid #aaa; margin-bottom: 12px;">
+        {% endif %}
+
+        <!-- ผลลัพธ์ -->
+        {% if result %}
+            <h3> Results:</h3>
+            <table class="result-table" border="1" cellpadding="8">
+                <tr><th>Position</th><th>Value</th></tr>
+                <tr><td>Digital</td><td>{{ result.digital_x }}</td></tr>
+                <tr><td>x001</td><td>{{ result.x001 }}</td></tr>
+                <tr><td>x0001</td><td>{{ result.x0001 }}</td></tr>
+                <tr><td>x00001</td><td>{{ result.x00001 }}</td></tr>
+                <tr><td><strong>Total</strong></td><td><strong>{{ result.total }} m³</strong></td></tr>
+            </table>
+        {% endif %}
+
+        {% if csv_path %}
+            <a href="{{ csv_path }}" class="btn-submit" download> ดาวน์โหลดผลลัพธ์ CSV</a>
+        {% endif %}
+
+        <!-- ประวัติผลลัพธ์ -->
+        <fieldset class="form-section" id="history">
+            <legend> ประวัติการอ่านล่าสุด</legend>
+            <table class="result-table">
+                <tr><th>วันที่</th><th>ไฟล์</th><th>Total (m³)</th></tr>
+                {% for item in recent_results %}
+  <tr>
+    <td>{{ item.date }}</td>
+    <td>{{ item.filename }}</td>
+    <td>{{ item.total }}</td>
+  </tr>
+{% empty %}
+  <tr><td colspan="3">- ไม่มีข้อมูล -</td></tr>
+{% endfor %}
+
+            </table>
+        </fieldset>
+    </div>
+
+<!-- CSS -->
+<style>
+    body {
+        font-family: sans-serif;
+        background-color: #f7f9fc;
+    }
+
+    .center-container {
+        max-width: 600px;
+        margin: 40px auto;
+        text-align: center;
+        padding: 20px;
+        background-color: #ffffff;
+        border-radius: 10px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    }
+
+    h2 {
+        font-size: 28px;
+        font-weight: bold;
+        color: #000000; 
+        margin-bottom: 20px;
+    }
+
+    .form-section {
+        margin-top: 24px;
+        padding: 16px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        text-align: center;
+        background-color: #fefefe;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+
+    legend {
+        font-weight: bold;
+        font-size: 16px;
+        padding: 0 8px;
+        color: #000000; 
+    }
+
+    .file-info {
+        display: block;
+        margin-bottom: 12px;
+        color: #333;
+    }
+
+    #file-upload,
+    #folder-upload {
+        display: none;
+    }
+
+    .custom-file-upload {
+        display: inline-block;
+        background-color: #6c757d;
+        color: white;
+        padding: 8px 14px;
+        font-size: 14px;
+        border-radius: 6px;
+        cursor: pointer;
+        margin-bottom: 12px;
+        margin-right: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .custom-file-upload:hover {
+        background-color: #5a6268;
+    }
+
+    .btn-submit {
+        background-color: #000000; 
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        font-size: 14px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin: 6px 4px;
+    }
+
+    .btn-submit:hover {
+        background-color: #345d9d;
+    }
+
+    .btn-submit:active {
+        background-color: #000000; 
+    }
+
+    .result-table {
+        margin: 20px auto;
+        border-collapse: collapse;
+        width: 100%;
+        max-width: 500px;
+        font-size: 14px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+
+    .result-table th {
+        background-color: #000000; 
+        color: white;
+        padding: 10px;
+        text-align: center;
+    }
+
+    .result-table td {
+        background-color: #f9f9f9;
+        padding: 8px 12px;
+        text-align: center;
+    }
+
+    .result-table tr:last-child td {
+        font-weight: bold;
+        background-color: #e0e8f5;
+    }
+</style>
+
+<!-- JS -->
+<script>
+window.addEventListener("DOMContentLoaded", function () {
+    const fileInput = document.getElementById("file-upload");
+    const fileNameDisplay = document.getElementById("file-name");
+    const previewImage = document.getElementById("preview-image");
+
+    fileInput?.addEventListener("change", function () {
+        const file = fileInput.files[0];
+        if (file && file.type.startsWith("image/")) {
+            fileNameDisplay.textContent = "ไฟล์ที่เลือก: " + file.name;
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                previewImage.src = e.target.result;
+                previewImage.style.display = "block";
+            };
+            reader.readAsDataURL(file);
+        } else {
+            fileNameDisplay.textContent = "";
+            previewImage.style.display = "none";
+            previewImage.src = "";
+        }
+    });
+
+    const folderInput = document.getElementById("folder-upload");
+    const folderCountDisplay = document.getElementById("folder-count");
+
+    folderInput?.addEventListener("change", function () {
+        const count = folderInput.files.length;
+        folderCountDisplay.textContent = "จำนวนไฟล์ที่เลือก: " + count + " ไฟล์";
+    });
+});
+</script>
+</body>
+</html>
+
